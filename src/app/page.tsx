@@ -1,69 +1,62 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Header } from "@/components/Header";
+import { ReviewPrompt } from "@/components/ReviewPrompt";
+import { OCCASIONS } from "@/lib/occasions";
+import { getRepo } from "@/lib/repo";
 
-export default function Home() {
+function greeting(now: Date): string {
+  // Horário de Campo Grande (UTC-4).
+  const h = (now.getUTCHours() + 20) % 24;
+  const day = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][
+    new Date(now.getTime() - 4 * 3_600_000).getUTCDay()
+  ];
+  if (h < 11) return `${day} de manhã`;
+  if (h < 17) return `${day} à tarde`;
+  return `${day} à noite`;
+}
+
+export default async function Home() {
+  const repo = getRepo();
+  const now = new Date();
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <Header />
+      <main className="flex-1 px-5 pb-10">
+        <p className="mt-4 text-sm font-medium text-muted">{greeting(now)} · Campo Grande</p>
+        <h1 className="mt-1 text-[2.6rem] leading-[1.02] font-bold tracking-tight">
+          Qual é a ocasião?
+        </h1>
+        <p className="mt-2 text-muted">Um toque e a gente mostra os 3 lugares que mais combinam.</p>
+
+        <ul className="mt-7 grid grid-cols-2 gap-3">
+          {OCCASIONS.map((o, i) => (
+            <li key={o.slug} className={i === 0 ? "col-span-2" : ""}>
+              <Link
+                href={`/o/${o.slug}`}
+                className="animate-rise flex h-full flex-col justify-end overflow-hidden rounded-3xl p-4 text-white transition active:scale-[0.98]"
+                style={{
+                  animationDelay: `${i * 50}ms`,
+                  minHeight: i === 0 ? "11rem" : "9.5rem",
+                  background: `radial-gradient(130% 100% at 0% 0%, ${o.color}b3, ${o.color} 60%, #151413 160%)`,
+                }}
+              >
+                <span className={`font-bold tracking-tight ${i === 0 ? "text-3xl" : "text-xl leading-tight"}`}>
+                  {o.name}
+                </span>
+                {i === 0 && <span className="mt-1 text-sm text-white/80">{o.tagline}</span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        {repo.mode === "demo" && (
+          <p className="mt-8 rounded-2xl border border-dashed border-line p-4 text-xs text-muted">
+            Modo demonstração: lugares fictícios e dados em memória. Configure o Supabase no
+            .env.local para usar a base real.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        )}
       </main>
-    </div>
+      <ReviewPrompt />
+    </>
   );
 }
