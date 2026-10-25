@@ -1,53 +1,14 @@
 "use server";
 
-import { createHash, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth";
+import { CUISINES } from "@/lib/cuisines";
+import { OCCASIONS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
+import type { PlacePatch } from "@/lib/repo/supabase";
 import type { Noise, PlaceStatus, SpendBand } from "@/lib/types";
-
-const COOKIE = "kb_admin";
-
-function adminPassword(): string | null {
-  if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD;
-  // Sem senha configurada, o admin só existe no modo demonstração.
-  return getRepo().mode === "demo" ? "demo" : null;
-}
-
-const digest = (s: string) => createHash("sha256").update(`kombin:${s}`).digest();
-
-export async function isAdmin(): Promise<boolean> {
-  const pw = adminPassword();
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (!pw || !token) return false;
-  const a = Buffer.from(token, "hex");
-  const b = digest(pw);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-async function requireAdmin() {
-  if (!(await isAdmin())) redirect("/admin");
-}
-
-export async function login(formData: FormData) {
-  const pw = adminPassword();
-  if (pw && formData.get("password") === pw) {
-    (await cookies()).set(COOKIE, digest(pw).toString("hex"), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 30,
-      path: "/admin",
-    });
-  }
-  redirect("/admin");
-}
-
-export async function logout() {
-  (await cookies()).delete({ name: COOKIE, path: "/admin" });
-  redirect("/admin");
-}
+import { normalizeWhatsapp } from "@/lib/whatsapp";
 
 export async function setStatus(formData: FormData) {
   await requireAdmin();
@@ -57,19 +18,55 @@ export async function setStatus(formData: FormData) {
   revalidatePath("/admin");
 }
 
+const text = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const intOrNull = (v: FormDataEntryValue | null) => (v ? Number(v) : null);
 
-export async function saveDetails(formData: FormData) {
-  await requireAdmin();
-  const whatsapp = String(formData.get("whatsapp") ?? "").replace(/\D/g, "");
+/** Lê o formulário completo de lugar (usado para editar e para cadastrar à mão). */
+function readPlaceForm(formData: FormData): PlacePatch {
+  const vibe: Record<string, number> = {};
+  for (const o of OCCASIONS) {
+    const raw = String(formData.get(`vibe_${o.slug}`) ?? "").replace(",", ".");
+    const n = Number(raw);
+    if (raw !== "" && Number.isFinite(n)) vibe[o.slug] = Math.min(10, Math.max(0, n));
+  }
   const cover = String(formData.get("seedCover") ?? "");
-  await getRepo().updatePlace(String(formData.get("id")), {
-    whatsapp: whatsapp || null,
-    neighborhood: String(formData.get("neighborhood") ?? "").trim() || null,
-    coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+  return {
+    name: text(formData.get("name")) ?? undefined,
+    category: text(formData.get("category")),
+    neighborhood: text(formData.get("neighborhood")),
+    address: text(formData.get("address")),
+    googlePlaceId: text(formData.get("googlePlaceId")),
+    whatsapp: normalizeWhatsapp(formData.get("whatsapp")),
+    coverUrl: text(formData.get("coverUrl")),
+    cuisines: formData
+      .getAll("cuisines")
+      .map(String)
+      .filter((c) => CUISINES.some((x) => x.slug === c)),
     seedSpend: intOrNull(formData.get("seedSpend")) as SpendBand | null,
     seedNoise: intOrNull(formData.get("seedNoise")) as Noise | null,
     seedCover: cover === "" ? null : cover === "1",
-  });
+    vibe,
+  };
+}
+
+export async function saveDetails(formData: FormData) {
+  await requireAdmin();
+  await getRepo().updatePlace(String(formData.get("id")), readPlaceForm(formData));
+  revalidatePath("/admin");
+}
+
+/** Cadastro manual: para lugares que o pipeline não pegou (ou antes de ter chave do Google). */
+export async function createPlace(formData: FormData) {
+  await requireAdmin();
+  const patch = readPlaceForm(formData);
+  if (!patch.name) return;
+  await getRepo().createPlace({ ...patch, name: patch.name, status: "approved" });
+  revalidatePath("/admin");
+  redirect("/admin?s=approved");
+}
+
+export async function resolveClaim(formData: FormData) {
+  await requireAdmin();
+  await getRepo().resolveClaim(Number(formData.get("id")), formData.get("approve") === "1");
   revalidatePath("/admin");
 }

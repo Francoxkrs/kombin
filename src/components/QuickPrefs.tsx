@@ -10,7 +10,14 @@ const BUDGETS = [
 ];
 
 /** Ajustes opcionais em chips, sem formulário: cada toque já refaz o ranking. */
-export function QuickPrefs({ color }: { color: string }) {
+export function QuickPrefs({
+  color,
+  cuisines,
+}: {
+  color: string;
+  /** Tipos de comida que existem nesta ocasião, com quantos lugares. */
+  cuisines: { slug: string; label: string; count: number }[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -44,40 +51,65 @@ export function QuickPrefs({ color }: { color: string }) {
     `shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition active:scale-95 ${
       active ? "text-white" : "border-line bg-surface"
     }`;
-  const activeStyle = (active: boolean) =>
-    active ? { background: color, borderColor: color } : undefined;
+  const activeStyle = (active: boolean) => (active ? { background: color, borderColor: color } : undefined);
 
   const budget = params.get("b");
+  const cuisine = params.get("c");
   const noCover = params.get("nc") === "1";
   const near = params.has("lat");
 
   return (
-    <div
-      className={`-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] ${pending ? "opacity-60" : ""}`}
-      aria-busy={pending}
-    >
-      {BUDGETS.map((b) => (
-        <button
-          key={b.value}
-          className={chip(budget === b.value)}
-          style={activeStyle(budget === b.value)}
-          aria-pressed={budget === b.value}
-          onClick={() => update({ b: budget === b.value ? null : b.value })}
+    <div className={`space-y-2 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
+      {cuisines.length > 1 && (
+        <div
+          className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]"
+          aria-label="Tipo de comida"
         >
-          {b.label}
+          <button
+            className={chip(!cuisine)}
+            style={activeStyle(!cuisine)}
+            aria-pressed={!cuisine}
+            onClick={() => update({ c: null })}
+          >
+            Qualquer comida
+          </button>
+          {cuisines.map((c) => (
+            <button
+              key={c.slug}
+              className={chip(cuisine === c.slug)}
+              style={activeStyle(cuisine === c.slug)}
+              aria-pressed={cuisine === c.slug}
+              onClick={() => update({ c: cuisine === c.slug ? null : c.slug })}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+        {BUDGETS.map((b) => (
+          <button
+            key={b.value}
+            className={chip(budget === b.value)}
+            style={activeStyle(budget === b.value)}
+            aria-pressed={budget === b.value}
+            onClick={() => update({ b: budget === b.value ? null : b.value })}
+          >
+            {b.label}
+          </button>
+        ))}
+        <button
+          className={chip(noCover)}
+          style={activeStyle(noCover)}
+          aria-pressed={noCover}
+          onClick={() => update({ nc: noCover ? null : "1" })}
+        >
+          Sem couvert
         </button>
-      ))}
-      <button
-        className={chip(noCover)}
-        style={activeStyle(noCover)}
-        aria-pressed={noCover}
-        onClick={() => update({ nc: noCover ? null : "1" })}
-      >
-        Sem couvert
-      </button>
-      <button className={chip(near)} style={activeStyle(near)} aria-pressed={near} onClick={toggleNear}>
-        {locating ? "Localizando…" : "Perto de mim"}
-      </button>
+        <button className={chip(near)} style={activeStyle(near)} aria-pressed={near} onClick={toggleNear}>
+          {locating ? "Localizando…" : "Perto de mim"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -45,7 +45,7 @@ export function MicroReview({ placeId, placeName, occasion, color = "#151413", v
   const [open, setOpen] = useState(variant === "prompt");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [done, setDone] = useState<{ total: number } | null>(null);
+  const [done, setDone] = useState<{ total: number; loggedIn: boolean } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function choose(value: number) {
@@ -119,6 +119,11 @@ export function MicroReview({ placeId, placeName, occasion, color = "#151413", v
                   ? `${done.total} avaliações. Faltam ${5 - done.total} para o selo Explorador.`
                   : `${done.total} avaliações. Você é Explorador de Campo Grande.`}
             </p>
+            {!done.loggedIn && (
+              <a href="/entrar" className="mt-3 inline-block text-sm font-semibold underline">
+                Entre para guardar no seu perfil e ganhar o selo
+              </a>
+            )}
             <button onClick={() => setOpen(false)} className="mt-6 w-full rounded-2xl bg-foreground py-3.5 font-semibold text-background">
               Fechar
             </button>

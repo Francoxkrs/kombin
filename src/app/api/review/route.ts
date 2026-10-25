@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DEVICE_COOKIE, PENDING_REVIEW_COOKIE, REVIEWED_COOKIE } from "@/lib/device-cookie";
+import { getCurrentUser } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
 import type { Noise, SpendBand } from "@/lib/types";
 
@@ -34,10 +35,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "lugar não encontrado" }, { status: 404 });
   }
 
+  const user = await getCurrentUser();
   const reviewed = (request.cookies.get(REVIEWED_COOKIE)?.value ?? "").split(",").filter(Boolean);
-  // Uma avaliação por lugar por aparelho: evita alguém inflar um lugar.
-  if (!reviewed.includes(b.placeId)) {
+  // Com conta: uma por pessoa por lugar (a nova substitui). Sem conta: uma por aparelho.
+  if (user || !reviewed.includes(b.placeId)) {
     await repo.addMicroReview({
+      userId: user?.id ?? null,
       placeId: b.placeId,
       occasion: b.occasion,
       spend: b.spend,
@@ -45,10 +48,12 @@ export async function POST(request: NextRequest) {
       noise: b.noise,
       deviceId: request.cookies.get(DEVICE_COOKIE)?.value ?? "sem-cookie",
     });
-    reviewed.push(b.placeId);
+    if (!reviewed.includes(b.placeId)) reviewed.push(b.placeId);
   }
+  if (user) await repo.setSaved(user.id, b.placeId, "been", true);
 
-  const res = NextResponse.json({ total: reviewed.length });
+  const total = user ? await repo.countUserReviews(user.id) : reviewed.length;
+  const res = NextResponse.json({ total, loggedIn: !!user });
   res.cookies.set(REVIEWED_COOKIE, reviewed.slice(-200).join(","), COOKIE_OPTS);
   res.cookies.delete(PENDING_REVIEW_COOKIE);
   return res;

@@ -14,6 +14,8 @@ import { SPEND_LABELS } from "./occasions";
 import type { Place, PlaceSignals, SpendBand } from "./types";
 
 export interface MatchPrefs {
+  /** Tipo de comida escolhido (filtro duro): "aniversário + pizza". */
+  cuisine?: string;
   budget?: SpendBand;
   noCover?: boolean;
   origin?: { lat: number; lng: number };
@@ -88,6 +90,7 @@ export function computeMatch(
   prefs: MatchPrefs = {},
 ): MatchResult | null {
   if (place.status !== "approved") return null;
+  if (prefs.cuisine && !place.cuisines.includes(prefs.cuisine)) return null;
   const w = occasion.weights;
   const criteria: Criterion[] = [];
 

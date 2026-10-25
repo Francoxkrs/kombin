@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cuisineLabel } from "@/lib/cuisines";
 import type { MatchResult } from "@/lib/match";
 import type { Occasion } from "@/lib/occasions";
 import { SPEND_LABELS } from "@/lib/occasions";
@@ -73,7 +74,9 @@ export function PlaceCard({
           <div className="min-w-0">
             <h3 className="truncate text-xl font-bold tracking-tight">{place.name}</h3>
             <p className="truncate text-sm text-muted">
-              {[place.category, place.neighborhood, spend].filter(Boolean).join(" · ")}
+              {[place.cuisines.map(cuisineLabel).join(", ") || place.category, place.neighborhood, spend]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           </div>
           <MatchBadge compat={result.compat} />

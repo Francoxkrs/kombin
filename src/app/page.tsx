@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
 import { OCCASIONS } from "@/lib/occasions";
-import { getRepo } from "@/lib/repo";
 
 function greeting(now: Date): string {
   // Horário de Campo Grande (UTC-4).
@@ -16,7 +15,6 @@ function greeting(now: Date): string {
 }
 
 export default async function Home() {
-  const repo = getRepo();
   const now = new Date();
   return (
     <>
@@ -49,12 +47,6 @@ export default async function Home() {
           ))}
         </ul>
 
-        {repo.mode === "demo" && (
-          <p className="mt-8 rounded-2xl border border-dashed border-line p-4 text-xs text-muted">
-            Modo demonstração: lugares fictícios e dados em memória. Configure o Supabase no
-            .env.local para usar a base real.
-          </p>
-        )}
       </main>
       <ReviewPrompt />
     </>

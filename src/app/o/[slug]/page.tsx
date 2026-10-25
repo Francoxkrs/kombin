@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { PlaceCard } from "@/components/PlaceCard";
 import { QuickPrefs } from "@/components/QuickPrefs";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
+import { CUISINES } from "@/lib/cuisines";
 import { rankPlaces, type MatchPrefs } from "@/lib/match";
 import { getOccasion } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
@@ -16,6 +17,7 @@ function parsePrefs(sp: Record<string, string | string[] | undefined>): MatchPre
   const lat = Number(one("lat"));
   const lng = Number(one("lng"));
   return {
+    cuisine: one("c") || undefined,
     budget: b >= 1 && b <= 4 ? (b as SpendBand) : undefined,
     noCover: one("nc") === "1",
     origin: Number.isFinite(lat) && Number.isFinite(lng) && one("lat") ? { lat, lng } : undefined,
@@ -33,9 +35,28 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
 
   const repo = getRepo();
   const [places, signals] = await Promise.all([repo.listPlaces("approved"), repo.getSignals()]);
-  const results = rankPlaces(places, signals, occasion, parsePrefs(await searchParams));
+  const prefs = parsePrefs(await searchParams);
+  const results = rankPlaces(places, signals, occasion, prefs);
   const top = results.slice(0, 3);
   const more = results.slice(3, 10);
+
+  // Chips de comida: só os tipos que têm lugar nesta ocasião.
+  const forOccasion = prefs.cuisine
+    ? rankPlaces(places, signals, occasion, { ...prefs, cuisine: undefined })
+    : results;
+  const cuisines = CUISINES.map((c) => ({
+    slug: c.slug,
+    label: c.label,
+    count: forOccasion.filter((r) => r.place.cuisines.includes(c.slug)).length,
+  })).filter((c) => c.count > 0);
+
+  // Conta a aparição no top 3 (é o número do painel do restaurante).
+  await repo
+    .addImpressions(
+      top.map((r) => r.place.id),
+      occasion.slug,
+    )
+    .catch((e) => console.error("aparições não registradas", e));
 
   return (
     <>
@@ -43,7 +64,7 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
       <main className="flex-1 px-5 pb-36">
         <h1 className="mt-2 text-4xl leading-[1.05] font-bold tracking-tight">{occasion.name}</h1>
         <p className="mt-2 mb-5 text-muted">{occasion.tagline}</p>
-        <QuickPrefs color={occasion.color} />
+        <QuickPrefs color={occasion.color} cuisines={cuisines} />
 
         {top.length === 0 ? (
           <div className="mt-10 rounded-3xl border border-dashed border-line p-6 text-center">

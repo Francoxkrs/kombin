@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEMO_PLACES } from "../src/lib/demo-data";
+import { DEMO_PLACES } from "./fixtures";
 import { computeMatch, rankPlaces } from "../src/lib/match";
 import { getOccasion } from "../src/lib/occasions";
 import type { Place, PlaceSignals } from "../src/lib/types";
@@ -66,4 +66,12 @@ test("lugar com vibe mediana e sem outros dados fica em 50%", () => {
 
 test("lugar pendente não aparece", () => {
   assert.equal(computeMatch({ ...byId("demo-adega"), status: "pending" }, none, encontro), null);
+});
+
+test("aniversário com pizza mostra só pizzaria", () => {
+  const aniversario = getOccasion("aniversario")!;
+  const ranked = rankPlaces(DEMO_PLACES, new Map(), aniversario, { cuisine: "pizza" });
+  assert.ok(ranked.length >= 2);
+  assert.ok(ranked.every((r) => r.place.cuisines.includes("pizza")));
+  assert.equal(ranked[0].place.id, "demo-forno");
 });
