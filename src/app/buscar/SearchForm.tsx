@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BTN_IPE, BTN_QUIET, chip } from "@/components/ui/styles";
 import { rankPlaces } from "@/lib/match";
+import { searchLoginHref } from "@/lib/prefs";
 import { ANY_OCCASION, BUDGET_OPTIONS, getOccasion, OCCASIONS, PARTY_OPTIONS, type Party } from "@/lib/occasions";
 import type { Place, PlaceSignals, SpendBand } from "@/lib/types";
 
@@ -94,11 +95,13 @@ export function SearchForm({
   places,
   signals,
   neighborhoods,
+  loggedIn,
   initial,
 }: {
   places: Place[];
   signals: [string, PlaceSignals][];
   neighborhoods: string[];
+  loggedIn: boolean;
   initial: State;
 }) {
   const router = useRouter();
@@ -130,7 +133,9 @@ export function SearchForm({
     if (s.t.length) q.set("t", s.t.join(","));
     if (s.nc) q.set("nc", "1");
     if (s.q) q.set("q", "1");
-    router.push(`/o/${occasion.slug}${q.size ? `?${q}` : ""}`, { transitionTypes: ["nav-forward"] });
+    const to = `/o/${occasion.slug}${q.size ? `?${q}` : ""}`;
+    // Monta os filtros à vontade; o login vem ao pedir os resultados, que voltam prontos depois.
+    router.push(loggedIn ? to : searchLoginHref(to), { transitionTypes: ["nav-forward"] });
   }
 
   return (

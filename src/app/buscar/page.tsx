@@ -1,12 +1,13 @@
 import { Page } from "@/components/ui/Page";
 import { TopBar } from "@/components/ui/TopBar";
+import { getCurrentUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
 import { SearchForm } from "./SearchForm";
 
 export const metadata = { title: "Filtros · Kombin" };
 
 export default async function SearchPage({ searchParams }: PageProps<"/buscar">) {
-  const [{ places, signals }, sp] = await Promise.all([getCatalog(), searchParams]);
+  const [{ places, signals }, user, sp] = await Promise.all([getCatalog(), getCurrentUser(), searchParams]);
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
 
   const count = (list: string[]) => list.reduce((m, v) => m.set(v, (m.get(v) ?? 0) + 1), new Map<string, number>());
@@ -22,6 +23,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
         places={places}
         signals={[...signals]}
         neighborhoods={neighborhoods}
+        loggedIn={!!user}
         initial={{
           o: one("o") === "tudo" ? "" : one("o"),
           b: one("b"),

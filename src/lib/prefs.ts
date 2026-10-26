@@ -26,3 +26,13 @@ export function parsePrefs(sp: SP): MatchPrefs {
     tags: tags.length ? tags : undefined,
   };
 }
+
+/** Filtros de busca na URL (tudo menos o tipo de comida, que é link compartilhável). Busca exige login. */
+const SEARCH_KEYS = ["b", "p", "n", "t", "nc", "q", "lat"];
+
+export function isSearch(sp: SP): boolean {
+  return SEARCH_KEYS.some((k) => typeof sp[k] === "string" && sp[k] !== "");
+}
+
+/** Login antes da busca, voltando para os resultados depois. */
+export const searchLoginHref = (next: string) => `/entrar?motivo=busca&next=${encodeURIComponent(next)}`;
