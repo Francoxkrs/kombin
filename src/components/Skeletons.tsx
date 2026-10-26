@@ -7,21 +7,28 @@ export function RankingSkeleton() {
   return (
     <div className="px-5 pt-[max(1rem,env(safe-area-inset-top))]" aria-busy aria-label="Carregando">
       <Bar className="h-9 w-28" />
-      <div className="skeleton mt-6 size-10 rounded-2xl" />
+      <div className="skeleton mt-6 size-11 rounded-full" />
       <Bar className="mt-4 h-10 w-4/5" />
       <Bar className="mt-3 h-4 w-3/5" />
       <div className="mt-6 flex gap-2">
         {[0, 1, 2].map((i) => (
-          <Bar key={i} className="h-10 w-24" />
+          <Bar key={i} className="h-9 w-24" />
         ))}
       </div>
       {[0, 1].map((i) => (
-        <div key={i} className="mt-6 overflow-hidden rounded-[1.75rem] border border-line">
-          <div className="skeleton aspect-[4/3]" />
-          <div className="space-y-3 p-5">
-            <Bar className="h-7 w-2/3" />
-            <Bar className="h-4 w-1/2" />
-            <Bar className="h-4 w-3/4" />
+        <div key={i} className="mt-6 overflow-hidden rounded-3xl border border-line bg-surface">
+          <div className="skeleton aspect-[16/10]" />
+          <div className="space-y-2.5 p-4">
+            <div className="flex justify-between gap-4">
+              <Bar className="h-6 w-1/2" />
+              <Bar className="h-5 w-20" />
+            </div>
+            <Bar className="h-3.5 w-1/3" />
+            <div className="flex gap-1.5 pt-1">
+              {[0, 1, 2].map((j) => (
+                <div key={j} className="skeleton h-6 w-20 rounded-lg" />
+              ))}
+            </div>
           </div>
         </div>
       ))}

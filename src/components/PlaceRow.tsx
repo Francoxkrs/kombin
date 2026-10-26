@@ -10,7 +10,7 @@ export function PlaceRow({ place, href, right }: { place: Place; href?: string; 
     <div className="flex items-center gap-3 rounded-[1.3rem] border border-line bg-white p-2.5">
       <Photo src={photoSrc(place)} alt="" name={place.name} className="size-16 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-extrabold tracking-[-0.02em]">{place.name}</p>
+        <p className="truncate font-bold tracking-[-0.02em]">{place.name}</p>
         <p className="truncate text-sm text-muted">
           {[place.cuisines.map(cuisineLabel).join(", ") || place.category, place.neighborhood].filter(Boolean).join(" · ")}
         </p>

@@ -3,7 +3,19 @@
 import { updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { CATALOG_TAG } from "@/lib/catalog";
-import { DEFAULT_PROOF, filterReason, GoogleError, photoBytes, photoNames, placeDetails, QUERIES, textSearch } from "@/lib/ingest/google";
+import {
+  DEFAULT_PROOF,
+  ESSENTIALS,
+  filterReason,
+  GoogleError,
+  isFoodPlace,
+  photoBytes,
+  photoNames,
+  placeDetails,
+  QUERIES,
+  sameVenue,
+  textSearch,
+} from "@/lib/ingest/google";
 import { placeRowFromGoogle } from "@/lib/ingest/heuristic";
 import { vibeCheck, visionModelName, type VisionImage, type VisionProvider } from "@/lib/ingest/vision";
 import { getRepo } from "@/lib/repo";
@@ -62,6 +74,35 @@ export async function importQuery(index: number): Promise<ImportResult> {
     }
     if (added.length) updateTag(CATALOG_TAG);
     return { ok: true, label: query.label, found: found.length, added, skipped: found.length - fresh.length, reasons };
+  } catch (e) {
+    return { ok: false, error: explain(e) };
+  }
+}
+
+/**
+ * Uma casa da lista de essenciais (ex.: "Enoteca Decanter"): busca pelo nome e grava
+ * o primeiro resultado que for mesmo ela, sem o corte de nota e avaliações.
+ */
+export async function importEssential(
+  index: number,
+): Promise<{ ok: true; name: string; status: "added" | "known" | "missing" } | { ok: false; error: string }> {
+  await requireAdmin();
+  const name = ESSENTIALS[index];
+  if (!name) return { ok: false, error: "Lugar inválido" };
+  try {
+    const repo = getRepo();
+    const [found, known] = await Promise.all([textSearch(googleKey(), name, 1), repo.knownGoogleIds()]);
+    const hit = found.find(
+      (p) => isFoodPlace(p) && p.businessStatus !== "CLOSED_PERMANENTLY" && sameVenue(name, p.displayName?.text ?? ""),
+    );
+    if (!hit) {
+      console.log("essenciais: não achei", name, JSON.stringify(found.slice(0, 3).map((p) => p.displayName?.text)));
+      return { ok: true, name, status: "missing" };
+    }
+    if (known.has(hit.id)) return { ok: true, name: hit.displayName?.text ?? name, status: "known" };
+    await repo.upsertImported({ ...placeRowFromGoogle(hit), status: "approved", featured: true });
+    updateTag(CATALOG_TAG);
+    return { ok: true, name: hit.displayName?.text ?? name, status: "added" };
   } catch (e) {
     return { ok: false, error: explain(e) };
   }

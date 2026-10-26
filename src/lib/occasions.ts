@@ -1,3 +1,7 @@
+import type { GlyphName } from "./glyphs";
+
+const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=70`;
+
 /**
  * Ocasiões do Kombin e os pesos que cada uma dá aos critérios do índice.
  * Mudar um peso aqui muda o ranking na hora, sem migração de banco.
@@ -23,7 +27,14 @@ export interface Occasion {
   name: string;
   /** Nome curto para chips. */
   short: string;
-  emoji: string;
+  /** Ícone (src/components/ui/Glyph.tsx). */
+  icon: GlyphName;
+  /** Nome em duas partes: a segunda vai em serifa itálica ("A dois," + "pra conversar"). */
+  display: [string, string];
+  /** Frase da saudação quando esta é a ocasião do momento. */
+  mood: string;
+  /** Fotos de ambiente do card da ocasião (a primeira que carregar). */
+  images: string[];
   /** Etiquetas que contam a favor nesta ocasião (src/lib/tags.ts). */
   wantTags: string[];
   tagline: string;
@@ -40,7 +51,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "encontro",
     short: "A dois",
-    emoji: "🍷",
+    icon: "wine",
+    display: ["A dois,", "pra conversar"],
+    mood: "Clima perfeito para um jantar tranquilo",
+    images: [unsplash("photo-1510812431401-41d2bd2722f3"), unsplash("photo-1559339352-11d035aa65de"), unsplash("photo-1414235077428-338989a2e8c0")],
     wantTags: ["vinhos", "reserva", "drinks"],
     name: "A dois, pra conversar",
     tagline: "Luz baixa, sem couvert, mesa que dá pra ouvir o outro.",
@@ -59,7 +73,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "pagode",
     short: "Pagode",
-    emoji: "🥁",
+    icon: "music",
+    display: ["Pagode e", "porção"],
+    mood: "Noite boa pra samba e mesa cheia",
+    images: [unsplash("photo-1514933651103-005eec06c04b"), unsplash("photo-1516450360452-9312f5e86fc7"), unsplash("photo-1429962714451-bb934ecdc4ec")],
     wantTags: ["musica-ao-vivo", "chopp", "grupos", "area-externa"],
     name: "Pagode e porção",
     tagline: "Música ao vivo, mesa grande e porção pra dividir.",
@@ -78,7 +95,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "familia",
     short: "Família",
-    emoji: "🧸",
+    icon: "baby",
+    display: ["Família com", "criança"],
+    mood: "Dia bom pra almoçar com a família",
+    images: [unsplash("photo-1543353071-873f17a7a088"), unsplash("photo-1555396273-367ea4eb4db5"), unsplash("photo-1504674900247-0877df9cc836")],
     wantTags: ["criancas", "grupos", "estacionamento"],
     name: "Família com criança",
     tagline: "Espaço, cardápio fácil e ninguém olhando torto pro barulho.",
@@ -97,7 +117,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "happy-hour",
     short: "Happy hour",
-    emoji: "🍻",
+    icon: "beer",
+    display: ["Happy hour", "do trampo"],
+    mood: "Hora de um chopp depois do expediente",
+    images: [unsplash("photo-1528605248644-14dd04022da1"), unsplash("photo-1436076863939-06870fe779c2"), unsplash("photo-1470337458703-46ad1756a187")],
     wantTags: ["chopp", "drinks", "grupos", "area-externa"],
     name: "Happy hour do trampo",
     tagline: "Chopp gelado, petisco e saída fácil depois do expediente.",
@@ -116,7 +139,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "aniversario",
     short: "Aniversário",
-    emoji: "🎉",
+    icon: "party",
+    display: ["Aniversário", "da galera"],
+    mood: "Bom dia pra juntar a galera",
+    images: [unsplash("photo-1530103862676-de8c9debad1d"), unsplash("photo-1511795409834-ef04bbd61622"), unsplash("photo-1492684223066-81342ee5ff30")],
     wantTags: ["grupos", "reserva", "drinks"],
     name: "Aniversário da galera",
     tagline: "Mesa pra muita gente, clima de festa e conta que não assusta.",
@@ -134,7 +160,10 @@ export const OCCASIONS: Occasion[] = [
   {
     slug: "cafe",
     short: "Café",
-    emoji: "☕",
+    icon: "coffee",
+    display: ["Café pra", "estudar"],
+    mood: "Hora de um café sem pressa",
+    images: [unsplash("photo-1501339847302-ac426a4a7cbb"), unsplash("photo-1495474472287-4d71bcdd2085"), unsplash("photo-1554118811-1e0d58224f24")],
     wantTags: ["cafe", "sobremesa"],
     name: "Café pra estudar",
     tagline: "Tomada, wi-fi, silêncio e um café que vale a pena.",
@@ -157,7 +186,10 @@ export const ANY_OCCASION: Occasion = {
   slug: "tudo",
   name: "Para o seu momento",
   short: "Qualquer",
-  emoji: "✨",
+  icon: "sparkles",
+  display: ["Para o seu", "momento"],
+  mood: "Lugares que combinam com você",
+  images: [unsplash("photo-1517248135467-4c7edcad34c4"), unsplash("photo-1552566626-52f8b828add9")],
   wantTags: [],
   tagline: "Os lugares de Campo Grande que mais combinam com o que você escolheu.",
   decideLabel: "Decidir com a galera",
@@ -180,25 +212,32 @@ export function vibeFor(vibe: Record<string, number>, occasion: Occasion): numbe
 }
 
 export const PARTY_OPTIONS = [
-  { value: "2", label: "1 ou 2" },
-  { value: "3-5", label: "3 a 5" },
-  { value: "6+", label: "6 ou mais" },
+  { value: "2", label: "A dois" },
+  { value: "3-5", label: "3 a 5 pessoas" },
+  { value: "6+", label: "Grupo 6+" },
 ] as const;
 export type Party = (typeof PARTY_OPTIONS)[number]["value"];
 
 export const SPEND_LABELS: Record<number, string> = {
-  1: "até R$ 40",
-  2: "R$ 40 a 80",
-  3: "R$ 80 a 150",
+  1: "até R$ 50",
+  2: "R$ 50 a 100",
+  3: "R$ 100 a 150",
   4: "R$ 150+",
 };
 
-/** Valor típico por pessoa de cada faixa, para o "R$ 70" dos cards. */
+/** Faixas que a busca oferece (a 3ª cobre "R$ 100+"). */
+export const BUDGET_OPTIONS = [
+  { value: "1", label: "Até R$ 50" },
+  { value: "2", label: "R$ 50–100" },
+  { value: "3", label: "R$ 100+" },
+] as const;
+
+/** Valor típico por pessoa de cada faixa, para o "~R$ 75/pessoa" dos cards. */
 export const SPEND_TYPICAL: Record<number, string> = {
-  1: "R$ 35",
-  2: "R$ 60",
-  3: "R$ 110",
-  4: "R$ 180",
+  1: "R$ 40",
+  2: "R$ 75",
+  3: "R$ 120",
+  4: "R$ 190",
 };
 
 /** "R$ 60" a partir da média (que pode ser fracionada, vinda das reviews). */

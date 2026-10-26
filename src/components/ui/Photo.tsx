@@ -1,61 +1,77 @@
 "use client";
 
+import { UtensilsCrossed } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
   src: string | null;
+  /** Outras fotos para tentar se a primeira não carregar. */
+  fallbacks?: string[];
   alt: string;
-  /** Nome do lugar: vira a inicial do fundo quando não há foto. */
-  name: string;
+  /** Nome do lugar (só para acessibilidade; o fundo de reserva não usa letra). */
+  name?: string;
+  /** Mantido por compatibilidade; o fundo de reserva usa a superfície quente do tema. */
   color?: string;
   className?: string;
   eager?: boolean;
+  /** Classes extras da <img> (ex.: zoom no hover do card). */
+  imgClassName?: string;
 }
 
-/** Foto com entrada suave e fundo de reserva (gradiente com a inicial) se não houver imagem. */
-export function Photo({ src, alt, name, color = "#1b1b1f", className = "", eager }: Props) {
+/**
+ * Foto com entrada suave. Se nenhuma fonte carregar, mostra uma superfície quente
+ * com um ícone fino, nunca uma letra gigante.
+ */
+export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClassName = "" }: Props) {
+  const sources = [src, ...fallbacks].filter((s): s is string => !!s);
+  const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
   const img = useRef<HTMLImageElement>(null);
+  const current = sources[index];
   // "relative" junto com "absolute" no className deixaria a caixa com altura zero.
   const position = /\b(absolute|fixed)\b/.test(className) ? "" : "relative";
-  const hash = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+  const fail = () => {
+    setLoaded(false);
+    setIndex((i) => i + 1);
+  };
 
   // A foto pode terminar de carregar antes de o React assumir a página (onLoad não dispara).
   useEffect(() => {
     const el = img.current;
     if (!el?.complete) return;
     if (el.naturalWidth > 0) setLoaded(true);
-    else setFailed(true);
-  }, [src]);
+    else fail();
+  }, [current]);
 
   return (
     <div className={`${position} overflow-hidden bg-soft ${className}`}>
-      {(!src || failed) && (
+      {!current && (
         <div
           className="absolute inset-0 grid place-items-center"
           style={{
-            background: `radial-gradient(120% 90% at ${20 + (hash % 60)}% 0%, ${color}bb, ${color} 60%, #0b0b0c 140%)`,
-            filter: `hue-rotate(${(hash % 40) - 20}deg)`,
+            backgroundImage:
+              "radial-gradient(120% 80% at 20% 0%, #f9f5ec 0%, transparent 60%), repeating-linear-gradient(135deg, transparent 0 14px, rgba(104,101,94,0.05) 14px 15px)",
           }}
           aria-hidden
         >
-          <span className="display text-[5.5rem] text-white/20 select-none">{name.slice(0, 1)}</span>
+          <UtensilsCrossed className="size-6 text-muted/50" strokeWidth={1.25} />
         </div>
       )}
-      {src && !failed && (
+      {current && (
         // eslint-disable-next-line @next/next/no-img-element -- fotos do Google passam pelo nosso proxy com cache próprio
         <img
           ref={img}
-          src={src}
+          key={current}
+          src={current}
           alt={alt}
           loading={eager ? "eager" : "lazy"}
           decoding="async"
           fetchPriority={eager ? "high" : undefined}
           data-loaded={loaded}
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          className="fade-img absolute inset-0 size-full object-cover"
+          onError={fail}
+          className={`fade-img absolute inset-0 size-full object-cover ${imgClassName}`}
         />
       )}
     </div>

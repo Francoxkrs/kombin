@@ -23,7 +23,7 @@ export function PlaceFields({ place }: { place?: Place }) {
           {CUISINES.map((c) => (
             <label key={c.slug} className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1">
               <input type="checkbox" name="cuisines" value={c.slug} defaultChecked={place?.cuisines.includes(c.slug)} />
-              {c.emoji} {c.label}
+              {c.label}
             </label>
           ))}
         </div>
@@ -35,7 +35,7 @@ export function PlaceFields({ place }: { place?: Place }) {
           {TAGS.map((t) => (
             <label key={t.slug} className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1">
               <input type="checkbox" name="tags" value={t.slug} defaultChecked={place?.tags.includes(t.slug)} />
-              {t.emoji} {t.label}
+              {t.label}
             </label>
           ))}
         </div>

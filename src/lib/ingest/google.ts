@@ -29,6 +29,38 @@ export const QUERIES: { q: string; label: string }[] = [
   { q: "cafeteria", label: "cafeterias" },
 ];
 
+/**
+ * Casas conhecidas de Campo Grande que o app precisa ter desde o primeiro dia.
+ * Entram pelo nome, sem o filtro de nota, mas só se o Google achar a casa certa.
+ */
+export const ESSENTIALS: string[] = [
+  "Enoteca Decanter",
+  "Turista Sushi",
+  "Mr. VIP",
+  "Território do Vinho",
+  "Vermelho Grill",
+  "Café Mostarda",
+  "Lupland Biergarten",
+];
+
+/** Palavras que não identificam uma casa sozinhas ("Café", "Grill"). */
+const GENERIC_WORDS = new Set(["restaurante", "cafe", "bar", "grill", "sushi", "vinho", "pizzaria", "do", "da", "de", "mr"]);
+
+const normalize = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ");
+
+/** O resultado da busca é mesmo a casa pedida? Exige uma palavra própria do nome ("Decanter", "Mostarda"). */
+export function sameVenue(wanted: string, found: string): boolean {
+  const words = new Set(normalize(found).split(/\s+/));
+  return normalize(wanted)
+    .split(/\s+/)
+    .some((w) => w.length >= 3 && !GENERIC_WORDS.has(w) && words.has(w));
+}
+
 /** Só entra lugar de comer e beber. */
 const FOOD_TYPES = ["restaurant", "food", "bar", "cafe", "bakery", "meal_takeaway", "pub", "coffee_shop"];
 

@@ -1,4 +1,4 @@
-import { ChevronLeft, MapPin } from "lucide-react";
+import { ChevronLeft, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Logo } from "./Logo";
@@ -20,8 +20,8 @@ export function Avatar({ name, url, size = 36 }: { name: string; url: string | n
   }
   return (
     <span
-      className="grid place-items-center rounded-full bg-foreground font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.42 }}
+      className="grid place-items-center rounded-full bg-foreground font-semibold text-background"
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
@@ -31,16 +31,26 @@ export function Avatar({ name, url, size = 36 }: { name: string; url: string | n
 export async function AccountButton() {
   const user = await getCurrentUser();
   return user ? (
-    <Link href="/perfil" aria-label="Seu perfil" className="press rounded-full ring-2 ring-white">
-      <Avatar name={user.name} url={user.avatarUrl} />
+    <Link href="/perfil" aria-label="Seu perfil" className="press rounded-full ring-2 ring-background">
+      <Avatar name={user.name} url={user.avatarUrl} size={34} />
     </Link>
   ) : (
     <Link
       href="/entrar"
-      className="press rounded-full border border-line bg-white px-4 py-2 text-sm font-bold"
+      aria-label="Entrar"
+      className="press grid size-[34px] place-items-center rounded-full border border-line bg-surface text-foreground"
     >
-      Entrar
+      <UserRound className="size-[18px]" strokeWidth={1.5} />
     </Link>
+  );
+}
+
+/** Seletor de cidade (por enquanto só Campo Grande). */
+export function CityPill() {
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-soft px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink-2">
+      <MapPin className="size-3.5" strokeWidth={1.5} /> Campo Grande
+    </span>
   );
 }
 
@@ -60,27 +70,23 @@ export function TopBar({
         <Link
           href={back.href}
           transitionTypes={["nav-back"]}
-          className="press -ml-2 flex items-center gap-0.5 rounded-full py-2 pr-3 pl-1 text-[0.95rem] font-semibold"
+          className="press -ml-2 flex items-center gap-0.5 rounded-full py-2 pr-3 pl-1 text-sm font-medium text-ink-2"
         >
-          <ChevronLeft className="size-5" strokeWidth={2.4} />
+          <ChevronLeft className="size-5" strokeWidth={1.5} />
           {back.label ?? "Voltar"}
         </Link>
       ) : (
         <Logo />
       )}
       <div className="flex items-center gap-2">
-        {city && (
-          <span className="flex items-center gap-1 rounded-full bg-soft px-3 py-2 text-[0.8rem] font-semibold whitespace-nowrap">
-            <MapPin className="size-3.5" strokeWidth={2.4} /> Campo Grande
-          </span>
-        )}
+        {city && <CityPill />}
         {right ?? <AccountButton />}
       </div>
     </header>
   );
 }
 
-/** Botão redondo de vidro, para ficar por cima de foto. */
+/** Botão redondo de vidro escuro, para ficar por cima de foto. */
 export function GlassButton({
   children,
   label,
@@ -93,7 +99,7 @@ export function GlassButton({
   return (
     <span
       aria-label={label}
-      className={`press grid size-11 place-items-center rounded-full bg-white/80 text-foreground shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md ${className}`}
+      className={`press grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md ${className}`}
     >
       {children}
     </span>

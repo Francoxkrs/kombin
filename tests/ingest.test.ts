@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { filterReason, type GPlace, neighborhoodOf, passesFilter } from "../src/lib/ingest/google";
+import { filterReason, type GPlace, neighborhoodOf, passesFilter, sameVenue } from "../src/lib/ingest/google";
 import { heuristicVibe, placeRowFromGoogle, spendFromGoogle, tagsFromGoogle } from "../src/lib/ingest/heuristic";
 
 const base: GPlace = {
@@ -105,4 +105,14 @@ test("linha da importação tem bairro, notas e resumo", () => {
   assert.equal(row.seed_spend, 2);
   assert.match(row.ai_summary ?? "", /^Bar com música ao vivo/);
   assert.equal(neighborhoodOf(base), null);
+});
+
+test("essenciais: só aceita a casa certa pelo nome", () => {
+  assert.equal(sameVenue("Enoteca Decanter", "Enoteca Decanter - Campo Grande"), true);
+  assert.equal(sameVenue("Café Mostarda", "Mostarda Café e Bistrô"), true);
+  assert.equal(sameVenue("Mr. VIP", "Mr Vip Choperia"), true);
+  assert.equal(sameVenue("Território do Vinho", "Territorio do Vinho"), true);
+  // Palavra genérica sozinha não basta.
+  assert.equal(sameVenue("Café Mostarda", "Café Brasil"), false);
+  assert.equal(sameVenue("Vermelho Grill", "Grill do Zé"), false);
 });

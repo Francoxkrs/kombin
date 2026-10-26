@@ -12,7 +12,7 @@ interface Props {
   loggedIn: boolean;
   /** Para onde voltar depois do login. */
   back: string;
-  variant?: "glass" | "plain" | "pill";
+  variant?: "glass" | "dark" | "plain" | "pill";
 }
 
 const BURST = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
@@ -43,10 +43,12 @@ export function SaveButton({ placeId, saved, loggedIn, back, variant = "glass" }
   const label = optimistic ? "Tirar de Quero ir" : "Salvar em Quero ir";
   const base =
     variant === "glass"
-      ? "size-11 rounded-full bg-white/85 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md"
-      : variant === "pill"
-        ? "h-12 gap-2 rounded-2xl border border-line bg-white px-4 text-sm font-bold"
-        : "size-10 rounded-full";
+      ? "size-10 rounded-full bg-white/85 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md"
+      : variant === "dark"
+        ? "size-9 rounded-full bg-black/40 backdrop-blur-md"
+        : variant === "pill"
+          ? "h-12 gap-2 rounded-2xl border border-line bg-surface px-4 text-sm font-semibold"
+          : "size-10 rounded-full";
 
   return (
     <button
@@ -64,8 +66,10 @@ export function SaveButton({ placeId, saved, loggedIn, back, variant = "glass" }
         className="grid place-items-center"
       >
         <Heart
-          className={`size-[1.3rem] ${optimistic ? "fill-[#ff3b5c] text-[#ff3b5c]" : "text-foreground"}`}
-          strokeWidth={2.3}
+          className={`${variant === "dark" ? "size-[18px]" : "size-5"} ${
+            optimistic ? "fill-[#ff3b5c] text-[#ff3b5c]" : variant === "dark" ? "text-white" : "text-foreground"
+          }`}
+          strokeWidth={1.5}
         />
       </motion.span>
       {variant === "pill" && <span>{optimistic ? "Na sua lista" : "Quero ir"}</span>}

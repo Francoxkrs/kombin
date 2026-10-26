@@ -1,16 +1,15 @@
-import { ArrowRight, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ArrowRight, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
-import { MarqueeBand } from "@/components/MarqueeBand";
-import { PlaceTile } from "@/components/PlaceTile";
+import { OccasionCard } from "@/components/OccasionCard";
+import { RestaurantCard } from "@/components/RestaurantCard";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
 import { Page } from "@/components/ui/Page";
 import { Photo } from "@/components/ui/Photo";
 import { TopBar } from "@/components/ui/TopBar";
 import { getCurrentUser } from "@/lib/auth";
-import { EMPTY_SIGNALS, getCatalog } from "@/lib/catalog";
-import { CUISINES } from "@/lib/cuisines";
-import { rankPlaces } from "@/lib/match";
-import { ANY_OCCASION, OCCASIONS, vibeFor } from "@/lib/occasions";
+import { getCatalog } from "@/lib/catalog";
+import { rankPlaces, type MatchResult } from "@/lib/match";
+import { ANY_OCCASION, getOccasion, OCCASIONS } from "@/lib/occasions";
 import { photoSrc } from "@/lib/photos";
 import { getSaved } from "@/lib/saved";
 import { greeting } from "@/lib/time";
@@ -19,134 +18,82 @@ export default async function DiscoverPage() {
   const [{ places, signals, byId }, user] = await Promise.all([getCatalog(), getCurrentUser()]);
   const saved = user ? await getSaved(user.id) : { want: [], been: [] };
   const savedSet = new Set(saved.want);
-  const { hello, moment, suggested } = greeting();
+  const { moment, mood, suggested } = greeting();
 
-  const occasions = OCCASIONS.map((o) => {
-    const ranked = rankPlaces(places, signals, o);
-    const cover = ranked.find((r) => photoSrc(r.place))?.place ?? ranked[0]?.place;
-    return { o, count: ranked.length, cover };
-  }).sort((a, b) => (a.o.slug === suggested ? -1 : b.o.slug === suggested ? 1 : 0));
-
-  const cuisines = CUISINES.map((c) => ({ ...c, count: places.filter((p) => p.cuisines.includes(c.slug)).length })).filter(
-    (c) => c.count > 0,
+  const occasions = OCCASIONS.map((o) => ({ o, count: rankPlaces(places, signals, o).length })).sort((a, b) =>
+    a.o.slug === suggested ? -1 : b.o.slug === suggested ? 1 : 0,
   );
 
-  const best = (p: (typeof places)[number]) => vibeFor(p.vibe, ANY_OCCASION) ?? 0;
-  const feed = [...places].sort((a, b) => Number(b.featured) - Number(a.featured) || best(b) - best(a)).slice(0, 24);
+  // "Escolhas para o seu momento": o ranking da ocasião da hora; se faltar lugar, completa com os melhores no geral.
+  const now = getOccasion(suggested) ?? ANY_OCCASION;
+  const picks: MatchResult[] = rankPlaces(places, signals, now).slice(0, 12);
+  if (picks.length < 6) {
+    const seen = new Set(picks.map((r) => r.place.id));
+    picks.push(...rankPlaces(places, signals, ANY_OCCASION).filter((r) => !seen.has(r.place.id)).slice(0, 12 - picks.length));
+  }
   const wantList = saved.want.map((id) => byId.get(id)).filter((p) => !!p).slice(0, 8);
-  const spendOf = (id: string) => {
-    const p = byId.get(id)!;
-    return signals.get(id)?.spendAvg ?? p.seedSpend ?? EMPTY_SIGNALS.spendAvg;
-  };
 
   return (
     <Page>
       <TopBar city />
-      <main className="flex-1 pb-32">
-        <section className="px-5 pt-4">
-          <p className="rise text-[0.95rem] font-medium text-muted">
-            {hello}
-            {user ? `, ${user.name.split(" ")[0]}` : ""} · {moment}
+      <main className="flex-1 pb-36">
+        <section className="px-5 pt-5">
+          <p className="rise text-sm text-muted">
+            {moment}
+            {mood && ` · ${mood}`}
           </p>
-          <h1 className="rise display mt-2 text-[2.9rem]" style={{ "--i": 1 } as React.CSSProperties}>
-            O que combina com você hoje?
+          <h1
+            className="rise mt-3 text-4xl leading-[1.05] font-bold tracking-tight text-foreground"
+            style={{ "--i": 1 } as React.CSSProperties}
+          >
+            O que <span className="accent text-[1.12em]">combina</span> com você hoje?
           </h1>
           <Link
             href="/buscar"
             transitionTypes={["nav-forward"]}
-            className="press rise mt-5 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.5)]"
+            className="press rise mt-6 flex items-center justify-between gap-3 rounded-full border border-line bg-surface py-2 pr-2 pl-5 shadow-sm"
             style={{ "--i": 2 } as React.CSSProperties}
           >
-            <SlidersHorizontal className="size-5" strokeWidth={2.3} />
-            <span className="flex-1 text-[0.98rem] text-muted">Comida, pessoas, orçamento, bairro…</span>
-            <span className="rounded-xl bg-foreground px-3 py-1.5 text-sm font-bold text-white">Filtrar</span>
+            <span className="truncate text-[13px] tracking-[-0.01em] text-muted">Escolher ocasião, companhia e orçamento...</span>
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-foreground text-background">
+              <SlidersHorizontal className="size-[18px]" strokeWidth={1.5} />
+            </span>
           </Link>
         </section>
 
-        <section className="mt-9">
-          <div className="flex items-end justify-between px-5">
-            <h2 className="text-[1.35rem] font-extrabold tracking-[-0.03em]">Qual é a ocasião?</h2>
-            <span className="text-sm text-muted">{OCCASIONS.length} momentos</span>
+        <section className="mt-8">
+          <div className="flex items-baseline justify-between px-5">
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">
+              Qual é a <span className="accent text-[1.15em]">ocasião</span>?
+            </h2>
+            <span className="text-xs text-muted">{OCCASIONS.length} momentos</span>
           </div>
-          <ul className="no-scrollbar mt-3 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2">
-            {occasions.map(({ o, count, cover }, i) => (
-              <li key={o.slug} className="snap-start">
-                <Link
-                  href={`/o/${o.slug}`}
-                  transitionTypes={["nav-forward"]}
-                  className="press rise relative block h-[19rem] w-[14.5rem] overflow-hidden rounded-[1.75rem] text-white"
-                  style={{ "--i": i } as React.CSSProperties}
-                >
-                  <Photo
-                    src={cover ? photoSrc(cover) : null}
-                    alt=""
-                    name={o.name}
-                    color={o.color}
-                    className="absolute inset-0"
-                    eager={i < 2}
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: `linear-gradient(180deg, transparent 25%, ${o.color}e6 78%, ${o.color})` }}
-                  />
-                  {o.slug === suggested && (
-                    <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-foreground">
-                      <Sparkles className="size-3.5" strokeWidth={2.4} /> Pra agora
-                    </span>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-4">
-                    <span className="text-3xl" aria-hidden>
-                      {o.emoji}
-                    </span>
-                    <p className="display mt-1 text-[1.6rem]">{o.name}</p>
-                    <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/85">{o.tagline}</p>
-                    <p className="mt-2 text-xs font-bold text-white/90">
-                      {count} {count === 1 ? "lugar" : "lugares"}
-                    </p>
-                  </div>
-                </Link>
+          <ul className="no-scrollbar mt-4 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2">
+            {occasions.map(({ o, count }, i) => (
+              <li key={o.slug} className="shrink-0 snap-start">
+                <OccasionCard occasion={o} count={count} now={o.slug === suggested} index={i} />
               </li>
             ))}
           </ul>
         </section>
 
-        {cuisines.length > 0 && (
-          <section className="mt-8">
-            <h2 className="px-5 text-[1.35rem] font-extrabold tracking-[-0.03em]">Bateu fome de quê?</h2>
-            <ul className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
-              {cuisines.map((c, i) => (
-                <li key={c.slug}>
-                  <Link
-                    href={`/o/tudo?c=${c.slug}`}
-                    transitionTypes={["nav-forward"]}
-                    className="press rise flex w-[4.9rem] flex-col items-center gap-1.5 text-center"
-                    style={{ "--i": i } as React.CSSProperties}
-                  >
-                    <span className="grid size-[4.2rem] place-items-center rounded-[1.4rem] bg-soft text-[2rem]">
-                      {c.emoji}
-                    </span>
-                    <span className="text-[12px] leading-tight font-semibold">{c.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {wantList.length > 0 && (
-          <section className="mt-9">
-            <div className="flex items-end justify-between px-5">
-              <h2 className="text-[1.35rem] font-extrabold tracking-[-0.03em]">Na sua lista</h2>
-              <Link href="/perfil" className="flex items-center gap-1 text-sm font-bold">
-                Ver tudo <ArrowRight className="size-4" />
+          <section className="mt-10">
+            <div className="flex items-baseline justify-between px-5">
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">
+                Na sua <span className="accent text-[1.15em]">lista</span>
+              </h2>
+              <Link href="/perfil" className="flex items-center gap-1 text-xs font-medium text-ink-2">
+                Ver tudo <ArrowRight className="size-3.5" strokeWidth={1.5} />
               </Link>
             </div>
-            <ul className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-5">
+            <ul className="no-scrollbar mt-4 flex gap-3 overflow-x-auto px-5">
               {wantList.map((p) => (
                 <li key={p.id} className="w-36 shrink-0">
                   <Link href={`/l/${p.id}`} transitionTypes={["nav-forward"]} className="press block">
                     <Photo src={photoSrc(p)} alt="" name={p.name} className="aspect-square rounded-2xl" />
-                    <p className="mt-1.5 truncate text-sm font-bold">{p.name}</p>
+                    <p className="mt-2 truncate text-sm font-semibold">{p.name}</p>
+                    <p className="truncate text-xs text-muted">{p.neighborhood ?? p.category}</p>
                   </Link>
                 </li>
               ))}
@@ -154,38 +101,48 @@ export default async function DiscoverPage() {
           </section>
         )}
 
-        <section className="mt-9 px-5">
-          <h2 className="text-[1.35rem] font-extrabold tracking-[-0.03em]">Descubra novos lugares</h2>
-          <p className="text-[0.95rem] text-muted">Sugestões em Campo Grande</p>
-          {feed.length === 0 ? (
-            <div className="mt-5 rounded-[1.75rem] bg-soft p-6 text-center">
-              <p className="text-lg font-extrabold">A curadoria está chegando</p>
+        <section className="@container mt-10 px-5">
+          <h2 className="text-xl font-semibold tracking-[-0.02em]">
+            Escolhas para o seu <span className="accent text-[1.15em]">momento</span>
+          </h2>
+          <p className="mt-0.5 text-xs text-muted">
+            {now.slug === "tudo" ? "Os que mais combinam em Campo Grande" : `${now.name} · ordenado por compatibilidade`}
+          </p>
+          {picks.length === 0 ? (
+            <div className="mt-5 rounded-3xl border border-line bg-soft p-6 text-center">
+              <p className="text-lg font-semibold">
+                A curadoria está <span className="accent text-[1.15em]">chegando</span>
+              </p>
               <p className="mt-1 text-sm text-muted">
                 Os primeiros restaurantes entram assim que o time importar a lista de Campo Grande.
               </p>
               {user?.isAdmin && (
-                <Link href="/admin?s=importar" className="press mt-4 inline-block rounded-2xl bg-foreground px-5 py-3 font-bold text-white">
+                <Link
+                  href="/admin?s=importar"
+                  className="press mt-4 inline-block rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background"
+                >
                   Importar do Google agora
                 </Link>
               )}
             </div>
           ) : (
-            <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-6">
-              {feed.map((p, i) => (
-                <PlaceTile
-                  key={p.id}
-                  place={p}
-                  spend={spendOf(p.id)}
-                  saved={savedSet.has(p.id)}
+            <div className="mt-5 grid grid-cols-1 gap-5 @xl:grid-cols-2">
+              {picks.map((r, i) => (
+                <RestaurantCard
+                  key={r.place.id}
+                  place={r.place}
+                  compat={r.compat}
+                  badges={r.badges}
+                  spend={r.spend}
+                  saved={savedSet.has(r.place.id)}
                   loggedIn={!!user}
+                  href={now.slug === "tudo" ? undefined : `/l/${r.place.id}?o=${now.slug}`}
                   index={i % 6}
                 />
               ))}
             </div>
           )}
         </section>
-
-        <MarqueeBand />
       </main>
       <ReviewPrompt />
     </Page>

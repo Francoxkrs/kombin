@@ -20,9 +20,9 @@ export function ShareButton({ title, text, path }: { title: string; text: string
       type="button"
       onClick={share}
       aria-label="Compartilhar"
-      className="press grid size-11 place-items-center rounded-full bg-white/85 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md"
+      className="press grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md"
     >
-      {copied ? <Check className="size-5 text-match" strokeWidth={2.6} /> : <Share2 className="size-5" strokeWidth={2.2} />}
+      {copied ? <Check className="size-[18px] text-emerald-400" strokeWidth={2} /> : <Share2 className="size-[18px]" strokeWidth={1.5} />}
     </button>
   );
 }

@@ -49,7 +49,7 @@ export function LiveRows({ placeId, enabled }: { placeId: string; enabled: boole
     <>
       <li className="border-t border-line py-3.5">
         <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 text-left" aria-expanded={open}>
-          <Clock className="size-5 shrink-0" strokeWidth={2} />
+          <Clock className="size-5 shrink-0" strokeWidth={1.5} />
           <span className="flex-1">Horário de funcionamento</span>
           <span className={hours?.openNow ? "font-semibold text-match" : "text-muted"}>
             {hours?.openNow == null ? "Consultar" : hours.openNow ? "Aberto agora" : "Fechado agora"}
@@ -71,7 +71,7 @@ export function LiveRows({ placeId, enabled }: { placeId: string; enabled: boole
       {info?.nationalPhoneNumber && (
         <li className="border-t border-line">
           <a href={`tel:${info.nationalPhoneNumber.replace(/\D/g, "")}`} className="flex items-center gap-3 py-3.5">
-            <Phone className="size-5 shrink-0" strokeWidth={2} />
+            <Phone className="size-5 shrink-0" strokeWidth={1.5} />
             <span className="flex-1">Telefone</span>
             <span className="text-muted">{info.nationalPhoneNumber}</span>
           </a>

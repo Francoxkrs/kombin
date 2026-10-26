@@ -46,7 +46,7 @@ export function spendFromGoogle(p: GPlace): SpendBand | null {
   const end = Number(p.priceRange?.endPrice?.units);
   if (Number.isFinite(start) && start > 0) {
     const mid = Number.isFinite(end) && end > 0 ? (start + end) / 2 : start * 1.2;
-    return mid < 40 ? 1 : mid < 80 ? 2 : mid < 150 ? 3 : 4;
+    return mid < 50 ? 1 : mid < 100 ? 2 : mid < 150 ? 3 : 4;
   }
   return (p.priceLevel && PRICE_LEVEL[p.priceLevel]) || null;
 }

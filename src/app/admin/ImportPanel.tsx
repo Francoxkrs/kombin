@@ -3,7 +3,7 @@
 import { Check, CircleAlert, Download, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useTransition } from "react";
-import { importGooglePlace, importQuery, searchGoogle, visionNext, type GoogleHit } from "./import-actions";
+import { importEssential, importGooglePlace, importQuery, searchGoogle, visionNext, type GoogleHit } from "./import-actions";
 
 interface LogLine {
   text: string;
@@ -21,11 +21,13 @@ function describe(reasons: Record<string, number>): string {
 /** Importação do Google pelo navegador: uma busca por vez, com barra de progresso. */
 export function ImportPanel({
   queries,
+  essentials,
   hasGoogleKey,
   hasVision,
   visionQueue,
 }: {
   queries: string[];
+  essentials: string[];
   hasGoogleKey: boolean;
   hasVision: boolean;
   visionQueue: number;
@@ -46,8 +48,33 @@ export function ImportPanel({
     setRunning("import");
     setLog([]);
     let added = 0;
+    const steps = essentials.length + queries.length;
+    // Primeiro as casas conhecidas, pelo nome; depois as buscas por tipo de comida.
+    for (let i = 0; i < essentials.length; i++) {
+      setProgress(i / steps);
+      const r = await importEssential(i);
+      if (!r.ok) {
+        push({ text: r.error, kind: "error" });
+        setRunning(null);
+        return;
+      }
+      if (r.status === "added") {
+        added++;
+        setTotal(added);
+        setQueue((n) => n + 1);
+      }
+      push({
+        text:
+          r.status === "added"
+            ? `${r.name}: adicionado`
+            : r.status === "known"
+              ? `${r.name}: já no app`
+              : `${essentials[i]}: não achei no Google, adicione pela busca abaixo`,
+        kind: r.status === "missing" ? "error" : r.status === "added" ? "ok" : "info",
+      });
+    }
     for (let i = 0; i < queries.length; i++) {
-      setProgress(i / queries.length);
+      setProgress((essentials.length + i) / steps);
       const r = await importQuery(i);
       if (!r.ok) {
         push({ text: r.error, kind: "error" });
@@ -107,7 +134,7 @@ export function ImportPanel({
   if (!hasGoogleKey) {
     return (
       <div className="rounded-[1.5rem] border border-amber-300 bg-amber-50 p-5 text-sm">
-        <p className="text-base font-extrabold">Falta a chave do Google</p>
+        <p className="text-base font-bold">Falta a chave do Google</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-ink-2">
           <li>No Google Cloud, ative a <b>Places API (New)</b> e crie uma chave de API.</li>
           <li>Crie um alerta de orçamento de US$ 1 (a cota grátis cobre a importação).</li>
@@ -122,12 +149,14 @@ export function ImportPanel({
   return (
     <div className="space-y-5">
       <section className="rounded-[1.5rem] bg-foreground p-5 text-white">
-        <p className="flex items-center gap-2 text-lg font-extrabold">
+        <p className="flex items-center gap-2 text-lg font-bold">
           <Download className="size-5" /> Importar restaurantes de Campo Grande
         </p>
         <p className="mt-1 text-sm text-white/70">
-          {queries.length} buscas (pizzarias, japoneses, bares com música…). Entram só lugares abertos, com nota 4,2+ e
-          150+ avaliações no Google. Usa cerca de {queries.length} das 1.000 chamadas grátis do mês.
+          Primeiro as {essentials.length} casas essenciais pelo nome ({essentials.slice(0, 3).join(", ")}…), depois{" "}
+          {queries.length} buscas (pizzarias, japoneses, bares com música…). Nas buscas entram só lugares abertos, com nota
+          4,2+ e 150+ avaliações no Google. Usa cerca de {essentials.length + queries.length} das 1.000 chamadas grátis do
+          mês.
         </p>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
           <motion.div className="h-full rounded-full bg-[#3ddc84]" animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.4 }} />
@@ -152,7 +181,7 @@ export function ImportPanel({
       </section>
 
       <section className="rounded-[1.5rem] border border-line p-5">
-        <p className="flex items-center gap-2 font-extrabold">
+        <p className="flex items-center gap-2 font-bold">
           <Sparkles className="size-5" /> Refinar com IA de visão (opcional)
         </p>
         <p className="mt-1 text-sm text-muted">
@@ -176,7 +205,7 @@ export function ImportPanel({
       </section>
 
       <section className="rounded-[1.5rem] border border-line p-5">
-        <p className="font-extrabold">Adicionar um lugar específico</p>
+        <p className="font-bold">Adicionar um lugar específico</p>
         <form onSubmit={search} className="mt-3 flex gap-2">
           <input
             value={q}
@@ -196,7 +225,7 @@ export function ImportPanel({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold">{h.name}</p>
                   <p className="truncate text-xs text-muted">
-                    {h.rating ? `★ ${h.rating.toFixed(1)} (${h.reviews}) · ` : ""}
+                    {h.rating ? `nota ${h.rating.toFixed(1).replace(".", ",")} (${h.reviews}) · ` : ""}
                     {h.address}
                   </p>
                 </div>

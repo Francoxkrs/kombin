@@ -27,6 +27,8 @@ export interface MatchPrefs {
   neighborhood?: string;
   /** Etiquetas obrigatórias (filtro duro): música ao vivo, área externa... */
   tags?: string[];
+  /** "Dá pra conversar": tira lugar barulhento e pesa a favor dos calmos. */
+  quiet?: boolean;
 }
 
 export interface MatchResult {
@@ -34,6 +36,8 @@ export interface MatchResult {
   compat: number;
   /** Até 3 motivos, os mais fortes. */
   reasons: string[];
+  /** Os mesmos motivos em 1 a 3 palavras, para os selos do card ("Sem couvert", "Dá pra conversar"). */
+  badges: string[];
   /** Tudo que bate: filtros escolhidos + motivos (a lista "Por que combina com você?"). */
   checks: string[];
   /** Quantos filtros escolhidos o lugar atende (todos, já que os outros saem da lista). */
@@ -51,6 +55,8 @@ interface Criterion {
   fit: number;
   conf: number;
   good: string;
+  /** Versão curta do "good", para os selos do card. */
+  short: string;
   bad: string;
 }
 
@@ -123,19 +129,22 @@ export function computeMatch(
     fit: clamp01((vibe - 3) / 6),
     conf: VIBE_CONF,
     good: vibe >= 9 ? "Clima perfeito pra ocasião" : vibe >= 8 ? "Clima ótimo pra ocasião" : "Bom clima pra ocasião",
+    short: vibe >= 8 ? "Clima ideal" : "Bom clima",
     bad: "O clima não é o forte pra essa ocasião",
   });
 
   const noise = blend(place.seedNoise, signals.noiseAvg, signals.reviews);
-  if (w.noise) {
+  if (prefs.quiet && noise.value != null && noise.value >= 2.5 && noise.conf >= MIN_CONF) return null;
+  if (w.noise || prefs.quiet) {
     const quiet = noise.value == null ? 0.5 : (3 - noise.value) / 2;
-    const quietWanted = w.noise.want === "quiet";
+    const quietWanted = prefs.quiet || w.noise?.want === "quiet";
     criteria.push({
       key: "noise",
-      w: w.noise.w,
+      w: Math.max(w.noise?.w ?? 0, prefs.quiet ? 3 : 0),
       fit: quietWanted ? quiet : 1 - quiet,
       conf: noise.conf,
       good: quietWanted ? "Dá pra conversar" : "Ambiente animado",
+      short: quietWanted ? "Dá pra conversar" : "Ambiente animado",
       bad: quietWanted ? "Pode ser barulhento" : "Costuma ser mais calmo",
     });
   }
@@ -157,6 +166,7 @@ export function computeMatch(
       fit: wantCover ? p : 1 - p,
       conf: cover.conf,
       good: wantCover ? "Tem couvert artístico" : "Sem couvert",
+      short: wantCover ? "Som ao vivo" : "Sem couvert",
       bad: wantCover ? "Raramente tem som ao vivo" : "Costuma cobrar couvert",
     });
   }
@@ -171,6 +181,7 @@ export function computeMatch(
       fit: spend.value == null ? 0.5 : diff <= 0.25 ? 1 : diff <= 1 ? 0.4 : 0,
       conf: spend.conf,
       good: `Cabe no orçamento (${SPEND_LABELS[prefs.budget]})`,
+      short: "No orçamento",
       bad: "Pode passar do orçamento",
     });
   }
@@ -185,6 +196,7 @@ export function computeMatch(
       fit: hits.length === 0 ? 0.3 : Math.min(1, 0.55 + 0.25 * hits.length),
       conf: 0.8,
       good: hits[0] ?? "",
+      short: hits[0] ?? "",
       bad: "Falta estrutura típica dessa ocasião",
     });
     tagChecks.push(...hits.slice(1));
@@ -198,6 +210,7 @@ export function computeMatch(
       fit: groups ? 1 : 0.3,
       conf: place.tags.length > 0 ? 0.7 : 0,
       good: "Mesa pra muita gente",
+      short: "Mesa grande",
       bad: "Pode ser apertado pra grupo grande",
     });
   }
@@ -210,6 +223,7 @@ export function computeMatch(
       fit: clamp01(1 - km / 12),
       conf: 1,
       good: `A ${km.toFixed(1).replace(".", ",")} km de você`,
+      short: `${km.toFixed(1).replace(".", ",")} km`,
       bad: `Fica a ${km.toFixed(0)} km de você`,
     });
   }
@@ -219,11 +233,13 @@ export function computeMatch(
     (criteria.reduce((s, c) => s + c.w * c.conf * c.fit, 0) + SHRINK * 0.5) / (evidence + SHRINK);
 
   const known = criteria.filter((c) => c.conf >= MIN_CONF);
-  const positive = known
+  const strong = known
     .filter((c) => c.fit >= 0.7)
-    .sort((a, b) => b.w * b.fit * b.conf - a.w * a.fit * a.conf)
-    .map((c) => c.good);
+    .sort((a, b) => b.w * b.fit * b.conf - a.w * a.fit * a.conf);
+  const positive = strong.map((c) => c.good);
   const reasons = positive.slice(0, 3);
+  // Selos: primeiro o que a pessoa pediu (bairro, etiquetas), depois os motivos mais fortes.
+  const badges = [...new Set([...filterChecks, ...strong.map((c) => c.short), ...tagChecks])].filter(Boolean).slice(0, 3);
   const checks = [...new Set([...filterChecks, ...positive, ...tagChecks])].slice(0, 6);
   const worst = known
     .filter((c) => c.fit <= 0.35)
@@ -233,8 +249,10 @@ export function computeMatch(
     place,
     compat: Math.min(99, Math.max(0, Math.round(score * 100))),
     reasons,
+    badges,
     checks,
-    filtersMatched: filterChecks.length + (prefs.budget ? 1 : 0) + (prefs.noCover ? 1 : 0) + (prefs.party ? 1 : 0),
+    filtersMatched:
+      filterChecks.length + (prefs.budget ? 1 : 0) + (prefs.noCover ? 1 : 0) + (prefs.party ? 1 : 0) + (prefs.quiet ? 1 : 0),
     warning: worst?.bad ?? null,
     spend: spend.value,
     reviews: signals.reviews,

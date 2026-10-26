@@ -2,47 +2,46 @@
 export interface Cuisine {
   slug: string;
   label: string;
-  emoji: string;
   /** Tipos do Google Places (primaryType/types) que caem nesta culinária. */
   googleTypes: string[];
 }
 
 export const CUISINES: Cuisine[] = [
-  { slug: "pizza", label: "Pizza", emoji: "🍕", googleTypes: ["pizza_restaurant"] },
+  { slug: "pizza", label: "Pizza", googleTypes: ["pizza_restaurant"] },
   {
     slug: "japonesa",
-    label: "Japonesa", emoji: "🍣",
+    label: "Japonesa",
     googleTypes: ["japanese_restaurant", "sushi_restaurant", "ramen_restaurant"],
   },
-  { slug: "hamburguer", label: "Hambúrguer", emoji: "🍔", googleTypes: ["hamburger_restaurant"] },
-  { slug: "italiana", label: "Italiana", emoji: "🍝", googleTypes: ["italian_restaurant"] },
+  { slug: "hamburguer", label: "Hambúrguer", googleTypes: ["hamburger_restaurant"] },
+  { slug: "italiana", label: "Italiana", googleTypes: ["italian_restaurant"] },
   {
     slug: "carnes",
-    label: "Carnes e churrasco", emoji: "🥩",
+    label: "Carnes e churrasco",
     googleTypes: ["steak_house", "barbecue_restaurant", "brazilian_restaurant"],
   },
-  { slug: "regional", label: "Regional", emoji: "🐟", googleTypes: [] },
-  { slug: "frutos-do-mar", label: "Frutos do mar", emoji: "🦐", googleTypes: ["seafood_restaurant"] },
-  { slug: "mexicana", label: "Mexicana", emoji: "🌮", googleTypes: ["mexican_restaurant"] },
+  { slug: "regional", label: "Regional", googleTypes: [] },
+  { slug: "frutos-do-mar", label: "Frutos do mar", googleTypes: ["seafood_restaurant"] },
+  { slug: "mexicana", label: "Mexicana", googleTypes: ["mexican_restaurant"] },
   {
     slug: "arabe",
-    label: "Árabe", emoji: "🧆",
+    label: "Árabe",
     googleTypes: ["middle_eastern_restaurant", "lebanese_restaurant", "turkish_restaurant"],
   },
   {
     slug: "asiatica",
-    label: "Asiática", emoji: "🥢",
+    label: "Asiática",
     googleTypes: ["chinese_restaurant", "thai_restaurant", "asian_restaurant", "korean_restaurant"],
   },
-  { slug: "vegetariana", label: "Vegetariana", emoji: "🥗", googleTypes: ["vegetarian_restaurant", "vegan_restaurant"] },
+  { slug: "vegetariana", label: "Vegetariana", googleTypes: ["vegetarian_restaurant", "vegan_restaurant"] },
   {
     slug: "petiscos",
-    label: "Petiscos e bar", emoji: "🍻",
+    label: "Petiscos e bar",
     googleTypes: ["bar", "pub", "bar_and_grill", "wine_bar", "cocktail_bar"],
   },
   {
     slug: "cafe",
-    label: "Café e doces", emoji: "☕",
+    label: "Café e doces",
     googleTypes: ["cafe", "coffee_shop", "bakery", "dessert_shop", "ice_cream_shop", "confectionery"],
   },
 ];

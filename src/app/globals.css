@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
+/* Warm Editorial & Obsidian */
 :root {
-  --background: #ffffff;
+  --background: #fbf9f5;
   --surface: #ffffff;
-  --soft: #f4f4f6;
-  --foreground: #0b0b0c;
-  --ink-2: #3b3b42;
-  --muted: #73737c;
-  --line: #e8e8ed;
-  --match: #0c8a47;
-  --match-soft: #e6f6ed;
+  --soft: #f3efe6;
+  --foreground: #111111;
+  --ink-2: #3a3833;
+  --muted: #68655e;
+  --line: #e6e0d3;
+  /* Esmeralda: #10b981 sobre vidro escuro; em fundo claro, o tom mais escuro (contraste AA). */
+  --match: #047857;
+  --match-bright: #34d399;
+  --match-soft: #e3f4ec;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -24,12 +27,14 @@
   --color-line: var(--line);
   --color-match: var(--match);
   --color-match-soft: var(--match-soft);
+  --color-match-bright: var(--match-bright);
   --font-sans: var(--font-jakarta);
+  --font-serif: var(--font-instrument);
   --ease-out-expo: var(--ease-out);
 }
 
 html {
-  background: #ececef;
+  background: #ece7dc;
 }
 
 body {
@@ -51,9 +56,31 @@ body {
 }
 
 .display {
-  font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 0.98;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+/* Palavra de destaque em serifa itálica, dentro de títulos em Jakarta. */
+/* Véu no rodapé atrás das barras flutuantes: o conteúdo some suave em vez de bater na barra. */
+.dock-scrim {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  z-index: 30;
+  width: 100%;
+  max-width: 28rem;
+  height: 7rem;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(to top, var(--background) 10%, color-mix(in oklab, var(--background) 70%, transparent) 50%, transparent);
+}
+
+.accent {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .no-scrollbar {
@@ -73,7 +100,7 @@ body {
 
 /* Esqueleto de carregamento. */
 .skeleton {
-  background: linear-gradient(100deg, var(--soft) 30%, #fafafb 50%, var(--soft) 70%);
+  background: linear-gradient(100deg, var(--soft) 30%, #f9f6f0 50%, var(--soft) 70%);
   background-size: 300% 100%;
   animation: shimmer 1.3s linear infinite;
 }

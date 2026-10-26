@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Heart, Link2, RotateCcw, X } from "lucide-react";
+import { Check, Crown, Heart, Link2, RotateCcw, X } from "lucide-react";
 import { AnimatePresence, motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -75,12 +75,14 @@ function SwipeCard({
             <p className="mt-1 truncate text-white/80">{option.subtitle}</p>
           </div>
           {option.compat != null && (
-            <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-extrabold text-match">{option.compat}%</span>
+            <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-match">{option.compat}%</span>
           )}
         </div>
         <ul className="mt-3 space-y-1 text-sm text-white/90">
           {option.reasons.map((r) => (
-            <li key={r}>✓ {r}</li>
+            <li key={r} className="flex items-center gap-1.5">
+              <Check className="size-3.5 text-emerald-400" strokeWidth={2} /> {r}
+            </li>
           ))}
         </ul>
       </div>
@@ -166,7 +168,7 @@ export function VoteBoard({
           className="rounded-[1.75rem] p-5 text-white"
           style={{ background: color }}
         >
-          <p className="text-xl font-extrabold">Agora é com {occasion.decideWho === "mozão" ? "o mozão" : `a ${occasion.decideWho}`}.</p>
+          <p className="text-xl font-bold">Agora é com {occasion.decideWho === "mozão" ? "o mozão" : `a ${occasion.decideWho}`}.</p>
           <p className="mt-1 text-sm text-white/85">
             Quem receber o link vota arrastando os cards, sem baixar nada. O resultado aparece aqui ao vivo.
           </p>
@@ -179,7 +181,7 @@ export function VoteBoard({
               <WhatsAppIcon /> Mandar no WhatsApp
             </a>
             <button onClick={copy} className="press flex shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-white/50 px-4 py-3.5 font-bold">
-              <Link2 className="size-4" /> {copied ? "Copiado!" : "Link"}
+              <Link2 className="size-4" strokeWidth={1.5} /> {copied ? "Copiado!" : "Link"}
             </button>
           </div>
         </motion.div>
@@ -235,7 +237,7 @@ export function VoteBoard({
       ) : (
         <section>
           <div className="flex items-end justify-between">
-            <h2 className="text-[1.3rem] font-extrabold tracking-[-0.03em]">Resultado ao vivo</h2>
+            <h2 className="text-[1.3rem] font-bold tracking-[-0.03em]">Resultado ao vivo</h2>
             <span className="text-sm text-muted">
               {state.totalVotes} {state.totalVotes === 1 ? "voto" : "votos"}
             </span>
@@ -262,7 +264,7 @@ export function VoteBoard({
                   <div className="relative flex items-center gap-3">
                     <Photo src={o.photo} alt="" name={o.name} color={color} className="size-16 shrink-0 rounded-2xl" />
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-[1.05rem] font-extrabold">
+                      <p className="flex items-center gap-1.5 truncate text-[1.05rem] font-bold">
                         {lead && <Crown className="size-4 shrink-0 text-amber-500" strokeWidth={2.6} />}
                         {o.name}
                       </p>
@@ -279,7 +281,7 @@ export function VoteBoard({
           </ol>
           <div className="mt-4 flex gap-2">
             <button onClick={startVoting} className="press flex flex-1 items-center justify-center gap-2 rounded-2xl border border-line py-3.5 font-bold">
-              <RotateCcw className="size-4" /> {state.myVote ? "Mudar voto" : "Votar"}
+              <RotateCcw className="size-4" strokeWidth={1.5} /> {state.myVote ? "Mudar voto" : "Votar"}
             </button>
             {leader && (
               <Link

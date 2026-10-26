@@ -6,7 +6,7 @@ import { cuisineLabel } from "@/lib/cuisines";
 import { OCCASIONS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import type { PlaceStatus } from "@/lib/types";
-import { QUERIES } from "@/lib/ingest/google";
+import { ESSENTIALS, QUERIES } from "@/lib/ingest/google";
 import { createPlace, removeDemoPlaces, resolveClaim, saveDetails, setStatus } from "./actions";
 import { ImportPanel } from "./ImportPanel";
 import { PlaceFields } from "./PlaceFields";
@@ -84,7 +84,7 @@ async function Import() {
     <>
       {demo > 0 && (
         <form action={removeDemoPlaces} className="mb-4 rounded-[1.5rem] border border-amber-300 bg-amber-50 p-4">
-          <p className="font-extrabold">Há {demo} lugares fictícios no banco</p>
+          <p className="font-bold">Há {demo} lugares fictícios no banco</p>
           <p className="mt-1 text-sm text-ink-2">
             São os lugares de teste (Adega Lume, Varanda do Samba...), sem foto e com WhatsApp falso. Apague antes de
             divulgar o app.
@@ -96,6 +96,7 @@ async function Import() {
       )}
       <ImportPanel
         queries={QUERIES.map((q) => q.label)}
+        essentials={ESSENTIALS}
         hasGoogleKey={!!process.env.GOOGLE_MAPS_API_KEY}
         hasVision={!!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)}
         visionQueue={queue}

@@ -1,6 +1,18 @@
 "use client";
 
-import { MessageSquareHeart, X } from "lucide-react";
+import {
+  Banknote,
+  CircleSlash,
+  Coins,
+  CreditCard,
+  Gem,
+  Guitar,
+  MessageSquareHeart,
+  Volume,
+  Volume1,
+  Volume2,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import type { MicroReviewBody } from "@/app/api/review/route";
@@ -10,25 +22,25 @@ const STEPS = [
   {
     q: "Gastou quanto por pessoa?",
     options: [
-      { label: "até R$ 40", emoji: "🪙", value: 1 },
-      { label: "R$ 40 a 80", emoji: "💵", value: 2 },
-      { label: "R$ 80 a 150", emoji: "💳", value: 3 },
-      { label: "R$ 150+", emoji: "💎", value: 4 },
+      { label: "até R$ 50", icon: Coins, value: 1 },
+      { label: "R$ 50 a 100", icon: Banknote, value: 2 },
+      { label: "R$ 100 a 150", icon: CreditCard, value: 3 },
+      { label: "R$ 150+", icon: Gem, value: 4 },
     ],
   },
   {
     q: "Tinha couvert?",
     options: [
-      { label: "Não", emoji: "🙌", value: 0 },
-      { label: "Sim", emoji: "🎸", value: 1 },
+      { label: "Não", icon: CircleSlash, value: 0 },
+      { label: "Sim", icon: Guitar, value: 1 },
     ],
   },
   {
     q: "Dava pra conversar?",
     options: [
-      { label: "De boa", emoji: "🤫", value: 1 },
-      { label: "Mais ou menos", emoji: "🗣️", value: 2 },
-      { label: "Só gritando", emoji: "📣", value: 3 },
+      { label: "De boa", icon: Volume, value: 1 },
+      { label: "Mais ou menos", icon: Volume1, value: 2 },
+      { label: "Só gritando", icon: Volume2, value: 3 },
     ],
   },
 ] as const;
@@ -42,7 +54,7 @@ interface Props {
   variant?: "prompt" | "button";
 }
 
-const CONFETTI = ["#ff3b5c", "#0c8a47", "#ffb800", "#6d3fc0", "#1f7aff", "#ff7a1a"];
+const CONFETTI = ["#10b981", "#111111", "#e6e0d3", "#34d399", "#c8a96a", "#68655e"];
 
 /** Avaliação relâmpago: 3 perguntas, 3 toques, recompensa na hora. */
 export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", variant = "prompt" }: Props) {
@@ -97,9 +109,9 @@ export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", v
       {variant === "button" && (
         <button
           onClick={reopen}
-          className="press flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3.5 text-[0.95rem] font-bold text-white"
+          className="press flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-sm font-semibold text-background"
         >
-          <MessageSquareHeart className="size-5" strokeWidth={2.2} /> Já fui · avaliar em 3 toques
+          <MessageSquareHeart className="size-5" strokeWidth={1.5} /> Já fui · avaliar em 3 toques
         </button>
       )}
 
@@ -159,7 +171,7 @@ export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", v
                   >
                     Valeu!
                   </motion.div>
-                  <p className="text-xl font-extrabold tracking-[-0.02em]">Sua dica já entrou no índice de {placeName}.</p>
+                  <p className="text-xl font-bold tracking-[-0.02em]">Sua dica já entrou no índice de {placeName}.</p>
                   <div className="mx-auto mt-4 max-w-56">
                     <div className="h-2.5 overflow-hidden rounded-full bg-soft">
                       <motion.div
@@ -173,7 +185,7 @@ export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", v
                     <p className="mt-2 text-sm text-muted">
                       {done.total < 5
                         ? `${done.total}/5 para o selo Explorador de Campo Grande`
-                        : "Você é Explorador de Campo Grande 🧭"}
+                        : "Você é Explorador de Campo Grande"}
                     </p>
                   </div>
                   {!done.loggedIn && (
@@ -181,7 +193,7 @@ export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", v
                       Entre para guardar no seu perfil e ganhar o selo
                     </a>
                   )}
-                  <button onClick={() => setOpen(false)} className="press mt-6 w-full rounded-2xl bg-foreground py-4 font-bold text-white">
+                  <button onClick={() => setOpen(false)} className="press mt-6 h-12 w-full rounded-full bg-foreground text-sm font-semibold text-background">
                     Fechar
                   </button>
                 </div>
@@ -215,10 +227,10 @@ export function MicroReview({ placeId, placeName, occasion, color = "#0b0b0c", v
                             key={o.label}
                             disabled={pending}
                             onClick={() => choose(o.value)}
-                            className="press flex items-center gap-3 rounded-2xl border-2 border-line px-4 py-4 text-left text-[1.02rem] font-bold transition-colors hover:border-foreground disabled:opacity-50"
+                            className="press flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-left text-sm font-semibold transition-colors hover:border-foreground disabled:opacity-50"
                           >
-                            <span className="text-2xl" aria-hidden>
-                              {o.emoji}
+                            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-soft">
+                              <o.icon className="size-[18px]" strokeWidth={1.5} aria-hidden />
                             </span>
                             {o.label}
                           </button>
