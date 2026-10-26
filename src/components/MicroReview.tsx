@@ -1,9 +1,10 @@
 "use client";
 
-import { X } from "lucide-react";
+import { BadgeCheck, MapPin, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import type { MicroReviewBody } from "@/app/api/review/route";
+import { distanceKm, isWithinCheckin } from "@/lib/geo";
 import type { Noise, SpendBand } from "@/lib/types";
 import { BTN_LIGHT, BTN_QUIET } from "./ui/styles";
 
@@ -36,21 +37,50 @@ const STEPS = [
 
 const EXPLORER_AT = 5;
 
+type Checkin = "idle" | "locating" | "ok" | "far" | "denied";
+
+const km = (n: number) => (n < 1 ? `${Math.round(n * 1000)} m` : `${n.toFixed(1).replace(".", ",")} km`);
+
 interface Props {
   placeId: string;
   placeName: string;
   occasion: string | null;
+  /** Onde fica o lugar, para o check-in. Sem isso, o botão de confirmar visita não aparece. */
+  coords?: { lat: number; lng: number } | null;
   /** "prompt": aparece sozinho depois da visita. "button": aberto pela pessoa na página do lugar. */
   variant?: "prompt" | "button";
 }
 
 /** Avaliação relâmpago: 3 perguntas, 3 toques. */
-export function MicroReview({ placeId, placeName, occasion, variant = "prompt" }: Props) {
+export function MicroReview({ placeId, placeName, occasion, coords, variant = "prompt" }: Props) {
   const [open, setOpen] = useState(variant === "prompt");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [done, setDone] = useState<{ total: number; loggedIn: boolean } | null>(null);
+  const [done, setDone] = useState<{ total: number; loggedIn: boolean; verified?: boolean } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [checkin, setCheckin] = useState<Checkin>("idle");
+  const [away, setAway] = useState(0);
+
+  /**
+   * Check-in por raio: a conta de distância (Haversine) é feita aqui no celular e
+   * só o "estou no lugar" vai para o servidor. A localização não é enviada nem guardada.
+   */
+  function checkIn() {
+    if (!coords || !navigator.geolocation) return setCheckin("denied");
+    setCheckin("locating");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const d = distanceKm(coords, { lat: pos.coords.latitude, lng: pos.coords.longitude });
+        if (isWithinCheckin(d, pos.coords.accuracy)) setCheckin("ok");
+        else {
+          setAway(d);
+          setCheckin("far");
+        }
+      },
+      () => setCheckin("denied"),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
 
   function choose(value: number) {
     if (navigator.vibrate) navigator.vibrate(6);
@@ -67,6 +97,7 @@ export function MicroReview({ placeId, placeName, occasion, variant = "prompt" }
         spend: next[0] as SpendBand,
         cover: next[1] === 1,
         noise: next[2] as Noise,
+        verifiedVisit: checkin === "ok",
       };
       const res = await fetch("/api/review", {
         method: "POST",
@@ -87,6 +118,7 @@ export function MicroReview({ placeId, placeName, occasion, variant = "prompt" }
     setStep(0);
     setAnswers([]);
     setDone(null);
+    setCheckin("idle");
     setOpen(true);
   }
 
@@ -136,7 +168,11 @@ export function MicroReview({ placeId, placeName, occasion, variant = "prompt" }
                   >
                     Valeu!
                   </motion.p>
-                  <p className="mt-3 max-w-[30ch] text-[20px] leading-snug">Sua dica já entrou no índice de {placeName}.</p>
+                  <p className="mt-3 max-w-[30ch] text-[20px] leading-snug">
+                    {done.verified
+                      ? `Visita confirmada: sua dica entrou com peso dobrado no índice de ${placeName}.`
+                      : `Sua dica já entrou no índice de ${placeName}.`}
+                  </p>
                   <div className="mt-6 flex gap-1" aria-hidden>
                     {Array.from({ length: EXPLORER_AT }, (_, i) => (
                       <motion.span
@@ -176,6 +212,31 @@ export function MicroReview({ placeId, placeName, occasion, variant = "prompt" }
                       </span>
                     ))}
                   </div>
+                  {coords && (
+                    <button
+                      onClick={checkIn}
+                      disabled={checkin === "locating" || checkin === "ok"}
+                      className="press mt-4 flex min-h-11 w-full items-center gap-3 text-left text-[15px] leading-snug"
+                    >
+                      {checkin === "ok" ? (
+                        <BadgeCheck className="size-5 shrink-0 text-ipe" strokeWidth={2} />
+                      ) : (
+                        <MapPin className="size-5 shrink-0" strokeWidth={2} />
+                      )}
+                      <span>
+                        {checkin === "idle" && (
+                          <>
+                            <span className="font-semibold underline underline-offset-4">Está aí agora? Confirme a visita</span>
+                            <span className="block text-muted">Vale em dobro. Sua localização não sai do celular.</span>
+                          </>
+                        )}
+                        {checkin === "locating" && <span className="text-muted">Conferindo se você está lá...</span>}
+                        {checkin === "ok" && <span className="font-semibold">Visita confirmada: sua avaliação vale em dobro</span>}
+                        {checkin === "far" && <span className="text-muted">Você está a {km(away)} daqui. Dá pra avaliar mesmo assim.</span>}
+                        {checkin === "denied" && <span className="text-muted">Sem acesso à localização. Dá pra avaliar mesmo assim.</span>}
+                      </span>
+                    </button>
+                  )}
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div
                       key={step}

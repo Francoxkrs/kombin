@@ -38,5 +38,10 @@ export async function ReviewPrompt() {
 
   const place = await repo.getPlace(pending.p);
   if (!place) return null;
-  return <MicroReview placeId={place.id} placeName={place.name} occasion={pending.o} />;
+  return <MicroReview
+      placeId={place.id}
+      placeName={place.name}
+      occasion={pending.o}
+      coords={place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : null}
+    />;
 }

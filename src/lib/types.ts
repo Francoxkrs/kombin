@@ -43,6 +43,10 @@ export interface PlaceSignals {
   spendAvg: number | null;
   noiseAvg: number | null;
   coverRatio: number | null;
+  /** Quantas das avaliações têm visita confirmada (check-in ou "Como chegar" antes). */
+  verified?: number;
+  /** Peso somado das avaliações: 1 cada, 2 com visita confirmada. Sem a migração 0006, fica vazio. */
+  weight?: number;
 }
 
 export interface MicroReview {
@@ -52,6 +56,8 @@ export interface MicroReview {
   spend: SpendBand;
   cover: boolean;
   noise: Noise;
+  /** Visita confirmada: check-in no raio do lugar ou "Como chegar" algumas horas antes. */
+  verified?: boolean;
 }
 
 export interface DecisionSession {
