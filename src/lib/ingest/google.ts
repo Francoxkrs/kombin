@@ -88,7 +88,7 @@ export interface GPlace {
   types?: string[];
   primaryTypeDisplayName?: { text: string };
   businessStatus?: string;
-  addressComponents?: { longText: string; types: string[] }[];
+  addressComponents?: { longText?: string; types?: string[] }[];
   photos?: { name: string }[];
   priceLevel?: string;
   priceRange?: { startPrice?: GMoney; endPrice?: GMoney };
@@ -285,7 +285,7 @@ export function passesFilter(p: GPlace, proof: SocialProof = DEFAULT_PROOF): boo
 
 export function neighborhoodOf(p: GPlace): string | null {
   const c = p.addressComponents?.find(
-    (a) => a.types.includes("sublocality_level_1") || a.types.includes("sublocality"),
+    (a) => a.types?.includes("sublocality_level_1") || a.types?.includes("sublocality"),
   );
   return c?.longText ?? null;
 }
