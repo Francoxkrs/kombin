@@ -71,9 +71,15 @@ compat = 100 × (Σ peso·confiança·encaixe + 0,5) / (Σ peso·confiança + 1)
 
 Lugar sem dados fica em 50%. Filtros duros (tipo de comida, bairro, etiquetas marcadas, "sem couvert", orçamento muito abaixo) tiram o lugar da lista. O resultado nunca passa de 99% e sempre vem com até 3 motivos e 1 alerta. Para mudar o comportamento, mexa nos pesos em `src/lib/occasions.ts`. Os testes estão em `tests/match.test.ts` (`npm test`).
 
+Três coisas deixam o índice mais esperto, todas de graça (testes em `tests/context.test.ts`):
+
+- **Clima de agora** (`src/lib/weather.ts`, `src/lib/context.ts`): a cada 15 minutos o servidor consulta a [Open-Meteo](https://open-meteo.com) (sem chave, sem cadastro) para o centro de Campo Grande. Chovendo ou abaixo de 18 °C, lugar com a etiqueta "Coberto / climatizado" sobe e lugar só com "Área externa" desce, e a lista mostra "Chovendo agora em CG · Priorizando lugares cobertos". Em noite quente (24 °C ou mais, sem chuva) a área externa ganha um empurrão. Lugar sem nenhuma das duas etiquetas não muda. A importação marca "Coberto" quando o Google diz que o lugar não tem mesa ao ar livre; o resto se ajusta no `/admin`.
+- **Visita confirmada** (`src/components/MicroReview.tsx`, `src/app/api/review/route.ts`): avaliação vale em dobro se a pessoa fez check-in (o navegador calcula a distância até o lugar com Haversine e manda só "sim"; a localização nunca sai do celular) ou clicou em "Como chegar" entre 30 minutos e 3 dias antes de avaliar. A view `place_signals` faz as médias ponderadas.
+- **Seu estilo** (`src/lib/taste.ts`): cada busca fica na tabela `search_log` (sem localização) e, junto com os lugares que a pessoa escolhe (Como chegar, WhatsApp, salvos, avaliados), vira um gosto: etiquetas, comidas, gasto típico e se prefere lugar calmo. O que foi feito há um mês vale metade. Depois de umas 3 buscas, o gosto entra como mais um critério e a lista avisa "No seu estilo".
+
 ## Ligar a base real
 
-1. Crie um projeto grátis no [Supabase](https://supabase.com), direto ou pela integração da Vercel (Storage > Create > Supabase). **Crie as tabelas:** abra o projeto no Supabase (na Vercel: Storage > o banco > "Open in Supabase"), vá em **SQL Editor** e rode, um de cada vez, `supabase/migrations/0001_init.sql`, `0002_contas_paineis_culinaria.sql`, `0003_tags_destaque.sql`, `0004_seguranca.sql` e `0005_cardapio_dono.sql`. O editor de consultas da Vercel não serve: ele não roda vários comandos de uma vez.
+1. Crie um projeto grátis no [Supabase](https://supabase.com), direto ou pela integração da Vercel (Storage > Create > Supabase). **Crie as tabelas:** abra o projeto no Supabase (na Vercel: Storage > o banco > "Open in Supabase"), vá em **SQL Editor** e rode, um de cada vez, `supabase/migrations/0001_init.sql`, `0002_contas_paineis_culinaria.sql`, `0003_tags_destaque.sql`, `0004_seguranca.sql`, `0005_cardapio_dono.sql` e `0006_indice_contexto.sql`. O editor de consultas da Vercel não serve: ele não roda vários comandos de uma vez.
 2. Chaves: com a integração da Vercel, as variáveis que ela cria já funcionam. Sem ela, preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SECRET_KEY`. Nos dois casos, cadastre `ADMIN_EMAILS` na Vercel.
 3. No Google Cloud, ative a **Places API (New)**, crie uma chave e cadastre `GOOGLE_MAPS_API_KEY` na Vercel (Settings > Environment Variables), depois faça um Redeploy. **Antes**, crie um alerta de orçamento de US$ 1 e limite a cota diária da API.
 4. Entre em `/admin` > **Importar do Google** > **Começar importação**. Primeiro entram, pelo nome, as casas essenciais de Campo Grande (lista `ESSENTIALS` em `src/lib/ingest/google.ts`: Enoteca Decanter, Turista Sushi, Mr. VIP...). Depois vêm 16 buscas (pizzarias, japoneses, bares com música...); entram só lugares abertos, com nota 4,2+ e 150+ avaliações, já aprovados e com notas por ocasião calculadas a partir dos atributos do Google (música ao vivo, bom pra grupos, cardápio infantil...). Dá para rodar de novo: só entram lugares novos. Lugar específico que faltou: campo "Adicionar um lugar específico" na mesma tela.
@@ -100,6 +106,15 @@ Uma importação completa gasta 16 buscas. As fotos passam pelo nosso servidor (
 - Nota, fotos e reviews do Google são buscadas **ao vivo** e exibidas com atribuição.
 - Nome e endereço também são guardados para o app funcionar. É uma área cinzenta dos termos; para ficar 100% dentro, troque por dados do Foursquare Open Source Places ou do OpenStreetMap.
 - Não use dados do Google em mapa que não seja do Google. O "Como chegar" abre o Google Maps.
+
+## Segurança
+
+- **Quem grava no banco é só o servidor**, com a chave secreta, depois de validar o pedido (`src/lib/validation.ts`, zod) e conferir o limite de requisições (`src/lib/rate-limit.ts`). A chave pública vai para o navegador só para o login; a migração `0004_seguranca.sql` liga RLS em todas as tabelas, libera apenas leitura do que é público ou da própria pessoa e revoga qualquer escrita pela chave pública.
+- **Rode a 0004** no SQL Editor depois da 0003. Sem ela o app funciona, mas sem limite de requisições (aparece um aviso no log da Vercel).
+- **Conta do Google Cloud**: fotos e horários são cacheados no servidor e têm teto diário (`GOOGLE_DAILY_LIMIT`, padrão 500 chamadas). Mesmo assim, coloque cota diária na Places API e alerta de orçamento no Google Cloud: é o único freio que vale fora do código.
+- **Admin**: com "Confirm email" desligado, qualquer um pode criar conta com um e-mail que está em `ADMIN_EMAILS` e ainda não tem conta. Em produção prefira `update profiles set role = 'admin' where id = (select id from auth.users where email = 'voce@exemplo.com');` e deixe `ADMIN_EMAILS` vazio, ou mantenha a confirmação de e-mail ligada.
+- **Supabase Auth** (painel > Authentication): senha mínima de 8 caracteres (igual ao app) e limites de login em Rate Limits. Para bloquear robôs no cadastro, dá para ligar CAPTCHA (Cloudflare Turnstile, grátis) em Attack Protection.
+- Fotos enviadas pelo painel: só JPG, PNG ou WebP de até 2 MB, conferidos pelos bytes do arquivo, e os metadados (GPS, aparelho) são removidos no servidor antes de ir para o Storage.
 
 ## Deploy grátis
 

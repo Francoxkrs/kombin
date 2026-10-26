@@ -4,12 +4,15 @@ import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createDecision } from "@/app/actions";
+import type { ContextNote } from "@/lib/context";
 import { forWho, getOccasion, type Occasion } from "@/lib/occasions";
 import { posterNameSize, type PlaceScreen } from "@/lib/screen";
+import { ContextNotes } from "./ContextNotes";
 import { Wordmark } from "./ui/Logo";
 import { Photo } from "./ui/Photo";
 import { SaveButton } from "./ui/SaveButton";
 import { BTN_IPE, BTN_LIGHT, btn } from "./ui/styles";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export interface Slate {
   slug: string;
@@ -114,7 +117,7 @@ function EndScreen({ slate, occasion, isAdmin }: { slate: Slate; occasion: Occas
           {top.map((p) => (
             <input key={p.id} type="hidden" name="placeId" value={p.id} />
           ))}
-          <button className={`${BTN_IPE} w-full`}>{occasion.decideLabel}</button>
+          <SubmitButton className={`${BTN_IPE} w-full`}>{occasion.decideLabel}</SubmitButton>
         </form>
       )}
       <Link href={`/o/${occasion.slug}`} transitionTypes={["nav-forward"]} className={`${BTN_LIGHT} mt-2 w-full`}>
@@ -132,6 +135,7 @@ export function Discover({
   loggedIn,
   isAdmin,
   account,
+  notes = [],
 }: {
   slates: Slate[];
   initial: string;
@@ -140,6 +144,8 @@ export function Discover({
   loggedIn: boolean;
   isAdmin: boolean;
   account: React.ReactNode;
+  /** Clima e gosto que mexeram na ordem ("Chovendo agora em CG · Priorizando lugares cobertos"). */
+  notes?: ContextNote[];
 }) {
   const [current, setCurrent] = useState(initial);
   const pager = useRef<HTMLDivElement>(null);
@@ -195,6 +201,7 @@ export function Discover({
             );
           })}
         </ul>
+        <ContextNotes notes={notes} className="mt-1 px-5 [&_li]:text-[14px]" />
       </header>
 
       <div

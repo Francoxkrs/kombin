@@ -11,6 +11,7 @@ import { ESSENTIALS, QUERIES } from "@/lib/ingest/google";
 import { createPlace, removeDemoPlaces, resolveClaim, saveDetails, setStatus } from "./actions";
 import { ImportPanel } from "./ImportPanel";
 import { PlaceFields } from "./PlaceFields";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Admin · Kombin", robots: { index: false } };
 // A importação e o vibe-check rodam como server actions desta página.
@@ -114,7 +115,7 @@ function NewPlace() {
         Entra direto como aprovado. Dê nota de vibe só para as ocasiões em que ele deve aparecer.
       </p>
       <PlaceFields />
-      <button className={`${BTN_IPE} w-full`}>Cadastrar</button>
+      <SubmitButton className={`${BTN_IPE} w-full`}>Cadastrar</SubmitButton>
     </form>
   );
 }
@@ -196,7 +197,7 @@ async function PlaceList({
               <form action={saveDetails} className="mt-3 space-y-2">
                 <input type="hidden" name="id" value={p.id} />
                 <PlaceFields place={p} />
-                <button className={`${BTN_IPE} w-full`}>Salvar</button>
+                <SubmitButton className={`${BTN_IPE} w-full`}>Salvar</SubmitButton>
               </form>
             </details>
 

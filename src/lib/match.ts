@@ -7,13 +7,22 @@
  *
  *   compat = 100 × (Σ wᵢ·cᵢ·encaixeᵢ + K·0,5) / (Σ wᵢ·cᵢ + K)
  *
- * Lugar sem nenhum dado fica em 50%. Cada micro-review aumenta a confiança.
+ * Lugar sem nenhum dado fica em 50%. Cada micro-review aumenta a confiança, e
+ * a de visita confirmada (check-in ou "Como chegar" antes) conta em dobro.
+ *
+ * Contexto de agora também entra como critério: o clima de Campo Grande (chuva ou
+ * frio puxam lugar coberto) e o gosto aprendido com as buscas da pessoa.
  */
 import { cuisineLabel } from "./cuisines";
+import { distanceKm } from "./geo";
 import type { Occasion, Party } from "./occasions";
 import { SPEND_LABELS, vibeFor } from "./occasions";
 import { getTag } from "./tags";
+import { MIN_TASTE, type Taste, tasteFit } from "./taste";
 import type { Place, PlaceSignals, SpendBand } from "./types";
+import { type Weather, weatherMode } from "./weather";
+
+export { distanceKm };
 
 export interface MatchPrefs {
   /** Tipo de comida escolhido (filtro duro): "aniversário + pizza". */
@@ -29,6 +38,10 @@ export interface MatchPrefs {
   tags?: string[];
   /** "Dá pra conversar": tira lugar barulhento e pesa a favor dos calmos. */
   quiet?: boolean;
+  /** Clima de agora em Campo Grande (não é filtro: só reordena). */
+  weather?: Weather | null;
+  /** Gosto aprendido com as buscas e escolhas da pessoa (não é filtro: só reordena). */
+  taste?: Taste | null;
 }
 
 export interface MatchResult {
@@ -47,7 +60,7 @@ export interface MatchResult {
   reviews: number;
 }
 
-type CriterionKey = "vibe" | "noise" | "cover" | "price" | "distance" | "tags" | "party";
+type CriterionKey = "vibe" | "noise" | "cover" | "price" | "distance" | "tags" | "party" | "weather" | "taste";
 
 interface Criterion {
   key: CriterionKey;
@@ -73,7 +86,10 @@ const MIN_CONF = 0.3;
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
-/** Junta a estimativa inicial com as micro-reviews em uma média e uma confiança. */
+/**
+ * Junta a estimativa inicial com as micro-reviews em uma média e uma confiança.
+ * `n` é o peso das avaliações (visita confirmada vale 2), não só a contagem.
+ */
 function blend(
   seed: number | null,
   avg: number | null,
@@ -87,20 +103,8 @@ function blend(
   return { value, conf: total / (total + 2) };
 }
 
-export function distanceKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+/** Peso total das micro-reviews: a view já soma 2 por visita confirmada; sem ela, 1 por avaliação. */
+const reviewWeight = (s: PlaceSignals) => s.weight ?? s.reviews;
 
 export function computeMatch(
   place: Place,
@@ -133,7 +137,7 @@ export function computeMatch(
     bad: "O clima não é o forte pra essa ocasião",
   });
 
-  const noise = blend(place.seedNoise, signals.noiseAvg, signals.reviews);
+  const noise = blend(place.seedNoise, signals.noiseAvg, reviewWeight(signals));
   if (prefs.quiet && noise.value != null && noise.value >= 2.5 && noise.conf >= MIN_CONF) return null;
   if (w.noise || prefs.quiet) {
     const quiet = noise.value == null ? 0.5 : (3 - noise.value) / 2;
@@ -152,7 +156,7 @@ export function computeMatch(
   const cover = blend(
     place.seedCover == null ? null : place.seedCover ? 1 : 0,
     signals.coverRatio,
-    signals.reviews,
+    reviewWeight(signals),
   );
   if (prefs.noCover && cover.value != null && cover.value >= 0.5 && cover.conf >= MIN_CONF) {
     return null;
@@ -171,7 +175,7 @@ export function computeMatch(
     });
   }
 
-  const spend = blend(place.seedSpend, signals.spendAvg, signals.reviews);
+  const spend = blend(place.seedSpend, signals.spendAvg, reviewWeight(signals));
   if (prefs.budget) {
     const diff = spend.value == null ? 0 : spend.value - prefs.budget;
     if (diff >= 1.5 && spend.conf >= MIN_CONF) return null;
@@ -228,6 +232,53 @@ export function computeMatch(
     });
   }
 
+  // Clima: chuva ou frio puxam o coberto e empurram a área aberta; noite quente faz o contrário.
+  // Lugar sem nenhuma das duas etiquetas não muda (não sabemos como ele é).
+  const mode = weatherMode(prefs.weather);
+  if (mode) {
+    const open = place.tags.includes("area-externa");
+    const covered = place.tags.includes("coberto");
+    if (mode === "warm-night" && open) {
+      criteria.push({
+        key: "weather",
+        w: 1.5,
+        fit: 1,
+        conf: 0.8,
+        good: "Área externa pra noite quente",
+        short: "Ao ar livre",
+        bad: "",
+      });
+    } else if (mode !== "warm-night" && (open || covered)) {
+      criteria.push({
+        key: "weather",
+        w: 3,
+        // Com as duas etiquetas, tem onde se abrigar.
+        fit: covered ? 1 : 0.15,
+        conf: 0.8,
+        good: mode === "rain" ? "Coberto, bom pra dia de chuva" : "Coberto, bom pro friozinho",
+        short: "Coberto",
+        bad: mode === "rain" ? "Área aberta, ruim com chuva" : "Área aberta, pode bater frio",
+      });
+    }
+  }
+
+  // Gosto da pessoa: vale mais conforme ela usa, mas nunca vira aviso contra o lugar.
+  if (prefs.taste && prefs.taste.n >= MIN_TASTE) {
+    const t = tasteFit(place, prefs.taste);
+    if (t) {
+      criteria.push({
+        key: "taste",
+        w: 1.5,
+        // Piso alto: quem foge do estilo perde só um pouco; o critério serve para desempatar e reordenar.
+        fit: Math.max(0.45, t.fit),
+        conf: Math.min(0.8, prefs.taste.n / (prefs.taste.n + 6)),
+        good: t.why ? `Seu estilo: ${t.why.toLowerCase()}` : "Tem a cara do que você busca",
+        short: "Seu estilo",
+        bad: "",
+      });
+    }
+  }
+
   const evidence = criteria.reduce((s, c) => s + c.w * c.conf, 0);
   const score =
     (criteria.reduce((s, c) => s + c.w * c.conf * c.fit, 0) + SHRINK * 0.5) / (evidence + SHRINK);
@@ -242,7 +293,7 @@ export function computeMatch(
   const badges = [...new Set([...filterChecks, ...strong.map((c) => c.short), ...tagChecks])].filter(Boolean).slice(0, 3);
   const checks = [...new Set([...filterChecks, ...positive, ...tagChecks])].slice(0, 6);
   const worst = known
-    .filter((c) => c.fit <= 0.35)
+    .filter((c) => c.fit <= 0.35 && c.bad)
     .sort((a, b) => b.w * (1 - b.fit) - a.w * (1 - a.fit))[0];
 
   return {

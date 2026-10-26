@@ -35,6 +35,8 @@ export const microReviewBody = z.strictObject({
   spend: spendBand,
   cover: z.boolean(),
   noise: noiseLevel,
+  /** Check-in feito no navegador: só o resultado chega, nunca a localização. */
+  verifiedVisit: z.boolean().optional(),
 });
 
 export const voteBody = z.strictObject({

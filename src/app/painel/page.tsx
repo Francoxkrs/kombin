@@ -12,6 +12,7 @@ import type { Place } from "@/lib/types";
 import { MAX_MENU_PAGES } from "@/lib/validation";
 import { saveOwnerDetails } from "./actions";
 import { CoverEditor, MenuEditor } from "./PhotoEditors";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Painel do restaurante · Kombin" };
 
@@ -258,7 +259,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                   <input name="menuUrl" type="url" defaultValue={place.menuUrl ?? ""} placeholder="https://" className={field} />
                   <span className="mt-1 block text-[13px] text-muted">Se você já usa um cardápio digital, o link aparece junto das fotos.</span>
                 </label>
-                <button className={`${BTN_IPE} w-full`}>Salvar informações</button>
+                <SubmitButton className={`${BTN_IPE} w-full`}>Salvar informações</SubmitButton>
                 <p className="text-[14px] text-muted">
                   Gasto médio, couvert e barulho vêm de quem foi e não podem ser editados aqui. É isso que faz o cliente confiar no número.
                 </p>
