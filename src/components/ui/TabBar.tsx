@@ -15,7 +15,7 @@ const TABS = [
  * Telas com barra de ação própria no rodapé (filtros, ranking, lugar, votação, login)
  * não mostram o dock: nunca duas barras flutuantes ao mesmo tempo.
  */
-const HIDDEN = ["/buscar", "/o/", "/l/", "/v/", "/admin", "/painel", "/auth", "/entrar", "/redefinir-senha"];
+const HIDDEN = ["/buscar", "/o/", "/l/", "/v/", "/admin", "/painel", "/auth", "/entrar", "/redefinir-senha", "/conceitos"];
 
 export function TabBar() {
   const pathname = usePathname();
