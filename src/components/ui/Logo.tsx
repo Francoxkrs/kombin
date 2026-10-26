@@ -1,17 +1,43 @@
 import Link from "next/link";
+import { K_STEM, K_TIP, WORD_OMBIN, WORDMARK_RATIO, WORDMARK_VIEWBOX } from "./brand-paths";
 
-/** Marca redonda (votação, e-mails): o "k" em ipê sobre a noite. */
-export function LogoMark({ size = 36 }: { size?: number }) {
+/**
+ * Marca Kombin, rota Encaixe: o K tem duas peças. A haste (leite) tem um recorte e a
+ * ponta (ipê) entra nele com uma folga. A ponta é sempre a cor de destaque.
+ */
+
+/** Símbolo: só o K. Em fundo noite, para votação, e-mails e ícones. */
+export function LogoMark({ size = 36, tile = true }: { size?: number; tile?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
-      <circle cx="20" cy="20" r="20" fill="#ffc81e" />
-      <path d="M13 10h5.2v8.6L25.6 10H32l-8.3 9.3L32.4 30h-6.5l-5.9-7.6-1.8 2V30H13V10z" fill="#1a1008" />
+    <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden>
+      {tile && <rect width="512" height="512" rx="112" fill="#2a1b12" />}
+      <g transform="translate(119.2 406) scale(0.4412)">
+        <path d={K_STEM} fill="#f6f0e6" />
+        <path d={K_TIP} fill="#ffc81e" />
+      </g>
     </svg>
   );
 }
 
-export function Wordmark({ className = "text-[26px]" }: { className?: string }) {
-  return <span className={`leading-none font-bold tracking-[-0.04em] text-foreground ${className}`}>kombin</span>;
+/**
+ * Assinatura: K + "ombin" em curvas. `encaixe` faz a ponta entrar no recorte uma vez,
+ * a única animação da marca (desligada com movimento reduzido).
+ */
+export function Wordmark({ height = 26, encaixe = false }: { height?: number; encaixe?: boolean }) {
+  return (
+    <svg
+      viewBox={WORDMARK_VIEWBOX}
+      height={height}
+      width={Math.round(height * WORDMARK_RATIO)}
+      role="img"
+      aria-label="Kombin"
+      className="block"
+    >
+      <path d={K_STEM} className="fill-foreground" />
+      <path d={K_TIP} className={`fill-ipe ${encaixe ? "k-encaixe" : ""}`} />
+      <path d={WORD_OMBIN} className="fill-foreground" />
+    </svg>
+  );
 }
 
 export function Logo() {

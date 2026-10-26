@@ -22,6 +22,9 @@ export interface Slate {
 
 const POSITION_KEY = "kb_discover";
 
+/** A animação do encaixe da marca toca só na primeira abertura da página. */
+let brandPlayed = false;
+
 function readPosition(slug: string): number {
   try {
     const saved = JSON.parse(sessionStorage.getItem(POSITION_KEY) ?? "null");
@@ -148,6 +151,10 @@ export function Discover({
   notes?: ContextNote[];
 }) {
   const [current, setCurrent] = useState(initial);
+  const [encaixe] = useState(() => !brandPlayed);
+  useEffect(() => {
+    brandPlayed = true;
+  }, []);
   const pager = useRef<HTMLDivElement>(null);
   const tabs = useRef<HTMLUListElement>(null);
   const slate = slates.find((s) => s.slug === current) ?? slates[0];
@@ -180,7 +187,7 @@ export function Discover({
       <div className="scrim-top pointer-events-none absolute inset-x-0 top-0 z-20 h-40" />
       <header className="absolute inset-x-0 top-0 z-30 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between px-5">
-          <Wordmark />
+          <Wordmark encaixe={encaixe} />
           {account}
         </div>
         <ul ref={tabs} aria-label="Ocasiões" className="no-scrollbar flex gap-6 overflow-x-auto px-5">

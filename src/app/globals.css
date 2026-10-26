@@ -195,3 +195,18 @@ body {
     opacity: 1;
   }
 }
+
+/* Marca: a ponta do K entra no recorte da haste. Só na abertura, uma vez. */
+@media (prefers-reduced-motion: no-preference) {
+  .k-encaixe {
+    animation: k-encaixe 600ms var(--ease-out) 150ms both;
+  }
+}
+@keyframes k-encaixe {
+  from {
+    transform: translateX(180px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
