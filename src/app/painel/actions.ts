@@ -48,6 +48,7 @@ async function requireOwner(rawPlaceId: unknown) {
 function refresh(placeId: string) {
   updateTag(CATALOG_TAG);
   revalidatePath("/painel");
+  revalidatePath("/admin");
   revalidatePath(`/l/${placeId}`);
 }
 
