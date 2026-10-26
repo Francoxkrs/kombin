@@ -19,7 +19,7 @@ export interface DecisionOption {
 
 export interface DecisionState {
   code: string;
-  occasion: { slug: string; name: string; color: string; decideWho: string };
+  occasion: { slug: string; name: string; short: string; decideWho: string };
   options: DecisionOption[];
   totalVotes: number;
   myVote: string | null;
@@ -47,7 +47,7 @@ export async function getDecisionState(code: string, deviceId: string): Promise<
     occasion: {
       slug: occasion.slug,
       name: occasion.name,
-      color: occasion.color,
+      short: occasion.short,
       decideWho: occasion.decideWho,
     },
     options: places.map((p) => {
@@ -56,7 +56,7 @@ export async function getDecisionState(code: string, deviceId: string): Promise<
       return {
         id: p.id,
         name: p.name,
-        subtitle: [p.cuisines.map(cuisineLabel)[0] ?? p.category, p.neighborhood].filter(Boolean).join(" · "),
+        subtitle: [p.cuisines.map(cuisineLabel)[0] ?? p.category, p.neighborhood].filter(Boolean).join(", "),
         photo: photoSrc(p),
         compat: m?.compat ?? null,
         reasons: m?.reasons.slice(0, 2) ?? [],

@@ -1,11 +1,9 @@
 import { Page } from "@/components/ui/Page";
 import { TopBar } from "@/components/ui/TopBar";
 import { getCatalog } from "@/lib/catalog";
-import { CUISINES } from "@/lib/cuisines";
-import { TAGS } from "@/lib/tags";
 import { SearchForm } from "./SearchForm";
 
-export const metadata = { title: "Buscar · Kombin" };
+export const metadata = { title: "Filtros · Kombin" };
 
 export default async function SearchPage({ searchParams }: PageProps<"/buscar">) {
   const [{ places, signals }, sp] = await Promise.all([getCatalog(), searchParams]);
@@ -15,26 +13,23 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
   const neighborhoods = [...count(places.map((p) => p.neighborhood).filter((n): n is string => !!n))]
     .sort((a, b) => b[1] - a[1])
     .map(([n]) => n);
-  const cuisineCount = count(places.flatMap((p) => p.cuisines));
-  const tagCount = count(places.flatMap((p) => p.tags));
+  const back = one("o") ? `/o/${one("o")}` : "/";
 
   return (
     <Page>
-      <TopBar back={one("o") ? { href: `/o/${one("o")}`, label: "Resultados" } : undefined} />
+      <TopBar back={{ href: back, label: one("o") ? "Lista" : "Descobrir" }} right={<span />} />
       <SearchForm
         places={places}
         signals={[...signals]}
         neighborhoods={neighborhoods}
-        cuisines={CUISINES.filter((c) => cuisineCount.has(c.slug)).map(({ slug, label, emoji }) => ({ slug, label, emoji }))}
-        tags={TAGS.filter((t) => tagCount.has(t.slug))}
         initial={{
           o: one("o") === "tudo" ? "" : one("o"),
-          c: one("c"),
           b: one("b"),
           p: one("p"),
           n: one("n"),
           t: one("t") ? one("t").split(",") : [],
           nc: one("nc") === "1",
+          q: one("q") === "1",
         }}
       />
     </Page>

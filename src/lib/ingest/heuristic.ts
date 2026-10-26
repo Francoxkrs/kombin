@@ -19,6 +19,8 @@ export function tagsFromGoogle(p: GPlace): string[] {
   if (p.goodForGroups) t.push("grupos");
   if (p.goodForChildren || p.menuForChildren) t.push("criancas");
   if (p.outdoorSeating) t.push("area-externa");
+  // O Google dizer que NÃO tem mesa ao ar livre quer dizer que é tudo sob teto.
+  if (p.outdoorSeating === false) t.push("coberto");
   if (p.reservable) t.push("reserva");
   if (p.servesCocktails) t.push("drinks");
   if (p.servesBeer) t.push("chopp");
@@ -46,7 +48,7 @@ export function spendFromGoogle(p: GPlace): SpendBand | null {
   const end = Number(p.priceRange?.endPrice?.units);
   if (Number.isFinite(start) && start > 0) {
     const mid = Number.isFinite(end) && end > 0 ? (start + end) / 2 : start * 1.2;
-    return mid < 40 ? 1 : mid < 80 ? 2 : mid < 150 ? 3 : 4;
+    return mid < 50 ? 1 : mid < 100 ? 2 : mid < 150 ? 3 : 4;
   }
   return (p.priceLevel && PRICE_LEVEL[p.priceLevel]) || null;
 }

@@ -3,12 +3,12 @@ import { NOISE_LABELS, OCCASIONS, SPEND_LABELS } from "@/lib/occasions";
 import { TAGS } from "@/lib/tags";
 import type { Place } from "@/lib/types";
 
-const input = "w-full rounded-xl border border-line bg-soft px-3 py-2.5 outline-none focus:border-foreground focus:bg-white";
+const input = "h-12 w-full rounded-xl bg-soft px-3 text-[15px] text-foreground outline-none placeholder:text-muted focus:ring-2 focus:ring-ipe";
 
 /** Campos do lugar no admin (editar ou cadastrar à mão). */
 export function PlaceFields({ place }: { place?: Place }) {
   return (
-    <div className="grid grid-cols-2 gap-2 text-sm">
+    <div className="grid grid-cols-2 gap-2 text-[15px]">
       <input name="name" required defaultValue={place?.name} placeholder="Nome" className={`${input} col-span-2`} />
       <input name="category" defaultValue={place?.category ?? ""} placeholder="Categoria (ex.: Pizzaria)" className={input} />
       <input name="neighborhood" defaultValue={place?.neighborhood ?? ""} placeholder="Bairro" className={input} />
@@ -21,9 +21,9 @@ export function PlaceFields({ place }: { place?: Place }) {
         <legend className="mb-1 text-muted">Tipo de comida</legend>
         <div className="flex flex-wrap gap-1.5">
           {CUISINES.map((c) => (
-            <label key={c.slug} className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1">
+            <label key={c.slug} className="flex items-center gap-1.5 rounded-full bg-soft px-3 py-1.5">
               <input type="checkbox" name="cuisines" value={c.slug} defaultChecked={place?.cuisines.includes(c.slug)} />
-              {c.emoji} {c.label}
+              {c.label}
             </label>
           ))}
         </div>
@@ -33,15 +33,15 @@ export function PlaceFields({ place }: { place?: Place }) {
         <legend className="mb-1 text-muted">Etiquetas</legend>
         <div className="flex flex-wrap gap-1.5">
           {TAGS.map((t) => (
-            <label key={t.slug} className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1">
+            <label key={t.slug} className="flex items-center gap-1.5 rounded-full bg-soft px-3 py-1.5">
               <input type="checkbox" name="tags" value={t.slug} defaultChecked={place?.tags.includes(t.slug)} />
-              {t.emoji} {t.label}
+              {t.label}
             </label>
           ))}
         </div>
       </fieldset>
 
-      <label className="col-span-2 flex items-center gap-2 rounded-xl border border-line px-3 py-2.5">
+      <label className="col-span-2 flex items-center gap-2 rounded-xl bg-soft px-3 py-3">
         <input type="checkbox" name="featured" value="1" defaultChecked={place?.featured} />
         Destaque pago (aparece marcado no Descobrir)
       </label>
@@ -50,7 +50,7 @@ export function PlaceFields({ place }: { place?: Place }) {
         <legend className="mb-1 text-muted">Vibe por ocasião (0 a 10; vazio = não aparece na ocasião)</legend>
         <div className="grid grid-cols-3 gap-1.5">
           {OCCASIONS.map((o) => (
-            <label key={o.slug} className="text-xs">
+            <label key={o.slug} className="text-[13px] text-muted">
               {o.name}
               <input
                 name={`vibe_${o.slug}`}

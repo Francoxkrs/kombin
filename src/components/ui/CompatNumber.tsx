@@ -29,13 +29,3 @@ export function CompatNumber({ value, className = "" }: { value: number; classNa
     </span>
   );
 }
-
-export function CompatBadge({ value, size = "md" }: { value: number; size?: "sm" | "md" | "lg" }) {
-  const num = size === "lg" ? "text-[2.9rem]" : size === "md" ? "text-[2.1rem]" : "text-xl";
-  return (
-    <div className="shrink-0 text-right leading-none text-match">
-      <CompatNumber value={value} className={`display block ${num}`} />
-      <span className={`block font-semibold ${size === "sm" ? "mt-0.5 text-[10px]" : "mt-1 text-sm"}`}>compatível</span>
-    </div>
-  );
-}

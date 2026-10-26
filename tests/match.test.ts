@@ -97,3 +97,11 @@ test("grupo grande favorece quem é bom pra grupos", () => {
   assert.ok(grupo.compat < sozinho.compat);
   assert.equal(grupo.warning, "Pode ser apertado pra grupo grande");
 });
+
+test("dá pra conversar tira o lugar barulhento e vira selo do card", () => {
+  const ranked = rankPlaces(DEMO_PLACES, new Map(), pagode, { quiet: true });
+  assert.ok(!ranked.some((r) => r.place.id === "demo-varanda"));
+  const adega = computeMatch(byId("demo-adega"), none, encontro, { quiet: true })!;
+  assert.ok(adega.badges.includes("Dá pra conversar"));
+  assert.ok(adega.badges.length <= 3);
+});

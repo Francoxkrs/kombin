@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronDown, Clock, Phone, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { LiveInfo as Info } from "@/lib/google";
 
@@ -20,62 +19,59 @@ function useLive(placeId: string, enabled: boolean) {
   return info;
 }
 
-/** Nota do Google ao lado do nome (buscada ao vivo, com atribuição). */
-export function LiveRating({ placeId, enabled }: { placeId: string; enabled: boolean }) {
-  const info = useLive(placeId, enabled);
-  if (!info?.rating) return null;
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <a
-      href={info.googleMapsUri}
-      target="_blank"
-      rel="noopener"
-      className="press flex items-center gap-1.5 text-[0.95rem] font-semibold"
-    >
-      <Star className="size-4 fill-foreground" strokeWidth={0} />
-      {info.rating.toFixed(1).replace(".", ",")}
-      <span className="font-normal text-muted">({info.userRatingCount?.toLocaleString("pt-BR")} no Google)</span>
-    </a>
+    <div className="contents">
+      <dt className="text-muted">{label}</dt>
+      <dd>{children}</dd>
+    </div>
   );
 }
 
-/** Linhas de horário e telefone da seção "Informações do local". */
-export function LiveRows({ placeId, enabled }: { placeId: string; enabled: boolean }) {
+/** Linhas ao vivo do "Antes de ir": horário de hoje, nota e telefone do Google (com atribuição). */
+export function LiveFacts({ placeId, enabled }: { placeId: string; enabled: boolean }) {
   const info = useLive(placeId, enabled);
   const [open, setOpen] = useState(false);
-  const hours = info?.regularOpeningHours;
+  if (!info) return null;
+  const hours = info.regularOpeningHours;
   const today = (new Date().getDay() + 6) % 7; // Google começa na segunda
 
   return (
     <>
-      <li className="border-t border-line py-3.5">
-        <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 text-left" aria-expanded={open}>
-          <Clock className="size-5 shrink-0" strokeWidth={2} />
-          <span className="flex-1">Horário de funcionamento</span>
-          <span className={hours?.openNow ? "font-semibold text-match" : "text-muted"}>
-            {hours?.openNow == null ? "Consultar" : hours.openNow ? "Aberto agora" : "Fechado agora"}
-          </span>
-          {hours?.weekdayDescriptions && (
-            <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2.4} />
+      {hours?.openNow != null && (
+        <Fact label="Hoje">
+          {hours.weekdayDescriptions ? (
+            <button onClick={() => setOpen(!open)} aria-expanded={open} className="text-left">
+              <span className={hours.openNow ? "font-semibold text-ipe" : ""}>{hours.openNow ? "Aberto agora" : "Fechado agora"}</span>
+              <span className="text-muted underline underline-offset-4">{open ? ", esconder horários" : ", ver horários"}</span>
+            </button>
+          ) : (
+            <span className={hours.openNow ? "font-semibold text-ipe" : ""}>{hours.openNow ? "Aberto agora" : "Fechado agora"}</span>
           )}
-        </button>
-        {open && hours?.weekdayDescriptions && (
-          <ul className="mt-3 space-y-1 pl-8 text-sm text-ink-2">
-            {hours.weekdayDescriptions.map((d, i) => (
-              <li key={d} className={i === today ? "font-bold text-foreground" : ""}>
-                {d}
-              </li>
-            ))}
-          </ul>
-        )}
-      </li>
-      {info?.nationalPhoneNumber && (
-        <li className="border-t border-line">
-          <a href={`tel:${info.nationalPhoneNumber.replace(/\D/g, "")}`} className="flex items-center gap-3 py-3.5">
-            <Phone className="size-5 shrink-0" strokeWidth={2} />
-            <span className="flex-1">Telefone</span>
-            <span className="text-muted">{info.nationalPhoneNumber}</span>
+          {open && hours.weekdayDescriptions && (
+            <ul className="mt-2 space-y-1 text-[15px] text-ink-2">
+              {hours.weekdayDescriptions.map((d, i) => (
+                <li key={d} className={i === today ? "font-semibold text-foreground" : ""}>
+                  {d}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Fact>
+      )}
+      {info.rating != null && (
+        <Fact label="No Google">
+          <a href={info.googleMapsUri} target="_blank" rel="noopener" className="underline underline-offset-4">
+            Nota {info.rating.toFixed(1).replace(".", ",")}, {info.userRatingCount?.toLocaleString("pt-BR")} avaliações
           </a>
-        </li>
+        </Fact>
+      )}
+      {info.nationalPhoneNumber && (
+        <Fact label="Telefone">
+          <a href={`tel:${info.nationalPhoneNumber.replace(/\D/g, "")}`} className="underline underline-offset-4">
+            {info.nationalPhoneNumber}
+          </a>
+        </Fact>
       )}
     </>
   );

@@ -29,6 +29,38 @@ export const QUERIES: { q: string; label: string }[] = [
   { q: "cafeteria", label: "cafeterias" },
 ];
 
+/**
+ * Casas conhecidas de Campo Grande que o app precisa ter desde o primeiro dia.
+ * Entram pelo nome, sem o filtro de nota, mas só se o Google achar a casa certa.
+ */
+export const ESSENTIALS: string[] = [
+  "Enoteca Decanter",
+  "Turista Sushi",
+  "Mr. VIP",
+  "Território do Vinho",
+  "Vermelho Grill",
+  "Café Mostarda",
+  "Lupland Biergarten",
+];
+
+/** Palavras que não identificam uma casa sozinhas ("Café", "Grill"). */
+const GENERIC_WORDS = new Set(["restaurante", "cafe", "bar", "grill", "sushi", "vinho", "pizzaria", "do", "da", "de", "mr"]);
+
+const normalize = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ");
+
+/** O resultado da busca é mesmo a casa pedida? Exige uma palavra própria do nome ("Decanter", "Mostarda"). */
+export function sameVenue(wanted: string, found: string): boolean {
+  const words = new Set(normalize(found).split(/\s+/));
+  return normalize(wanted)
+    .split(/\s+/)
+    .some((w) => w.length >= 3 && !GENERIC_WORDS.has(w) && words.has(w));
+}
+
 /** Só entra lugar de comer e beber. */
 const FOOD_TYPES = ["restaurant", "food", "bar", "cafe", "bakery", "meal_takeaway", "pub", "coffee_shop"];
 
@@ -207,16 +239,19 @@ export interface SocialProof {
 
 export const DEFAULT_PROOF: SocialProof = { minRating: 4.2, minReviews: 150 };
 
+/** Por que o lugar fica de fora (null = entra). */
+export function filterReason(p: GPlace, proof: SocialProof = DEFAULT_PROOF): string | null {
+  if (p.businessStatus === "CLOSED_PERMANENTLY" || p.businessStatus === "CLOSED_TEMPORARILY") return "fechado";
+  if (!isFoodPlace(p)) return "não é de comer";
+  if ((p.rating ?? 0) < proof.minRating) return `nota abaixo de ${String(proof.minRating).replace(".", ",")}`;
+  if ((p.userRatingCount ?? 0) < proof.minReviews) return `menos de ${proof.minReviews} avaliações`;
+  if ((p.photos?.length ?? 0) === 0) return "sem foto";
+  return null;
+}
+
 /** Aberto, de comer/beber, com foto e com nota e volume de avaliações mínimos. */
 export function passesFilter(p: GPlace, proof: SocialProof = DEFAULT_PROOF): boolean {
-  return (
-    p.businessStatus !== "CLOSED_PERMANENTLY" &&
-    p.businessStatus !== "CLOSED_TEMPORARILY" &&
-    isFoodPlace(p) &&
-    (p.rating ?? 0) >= proof.minRating &&
-    (p.userRatingCount ?? 0) >= proof.minReviews &&
-    (p.photos?.length ?? 0) > 0
-  );
+  return filterReason(p, proof) === null;
 }
 
 export function neighborhoodOf(p: GPlace): string | null {

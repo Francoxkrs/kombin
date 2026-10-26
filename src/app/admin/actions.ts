@@ -12,6 +12,14 @@ import type { PlacePatch } from "@/lib/repo/supabase";
 import type { Noise, PlaceStatus, SpendBand } from "@/lib/types";
 import { normalizeWhatsapp } from "@/lib/whatsapp";
 
+/** Apaga os 12 lugares fictícios do seed, caso tenham ido parar no banco de produção. */
+export async function removeDemoPlaces() {
+  await requireAdmin();
+  await getRepo().deleteDemoPlaces();
+  updateTag(CATALOG_TAG);
+  revalidatePath("/admin");
+}
+
 export async function setStatus(formData: FormData) {
   await requireAdmin();
   const status = String(formData.get("status")) as PlaceStatus;
