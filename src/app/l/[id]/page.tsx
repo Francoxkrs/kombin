@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { toggleSaved } from "@/app/actions";
 import { Header } from "@/components/Header";
 import { MicroReview } from "@/components/MicroReview";
 import { MatchBadge, Reasons } from "@/components/PlaceCard";
 import { PlaceImage } from "@/components/PlaceImage";
+import { getCurrentUser } from "@/lib/auth";
+import { cuisineLabel } from "@/lib/cuisines";
 import { liveInfo, photoUri } from "@/lib/google";
 import { computeMatch } from "@/lib/match";
 import { getOccasion, NOISE_LABELS, OCCASIONS, SPEND_LABELS } from "@/lib/occasions";
@@ -37,9 +41,12 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
     .sort((a, b) => (place.vibe[b.slug] ?? 0) - (place.vibe[a.slug] ?? 0))
     .slice(0, 3);
 
+  const user = await getCurrentUser();
+  const saved = user ? await repo.savedLists(user.id, place.id) : [];
+  const here = `/l/${place.id}${occasion ? `?o=${occasion.slug}` : ""}`;
+
   const spend = match?.spend ?? place.seedSpend;
   const leadQuery = `p=${place.id}${occasion ? `&o=${occasion.slug}` : ""}${match ? `&c=${match.compat}` : ""}`;
-  const ownerContact = process.env.KOMBIN_CONTACT_WHATSAPP;
 
   return (
     <>
@@ -77,10 +84,37 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
             <div>
               <h1 className="text-3xl leading-tight font-bold tracking-tight">{place.name}</h1>
               <p className="mt-1 text-muted">
-                {[place.category, place.neighborhood].filter(Boolean).join(" · ")}
+                {[place.cuisines.map(cuisineLabel).join(", ") || place.category, place.neighborhood]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
             {match && <MatchBadge compat={match.compat} size="lg" />}
+          </div>
+
+          <div className="flex gap-2">
+            {(
+              [
+                { list: "want", label: "Quero ir", on: "Na lista ✓" },
+                { list: "been", label: "Já fui", on: "Já fui ✓" },
+              ] as const
+            ).map((b) => {
+              const on = saved.includes(b.list);
+              return (
+                <form key={b.list} action={toggleSaved} className="flex-1">
+                  <input type="hidden" name="placeId" value={place.id} />
+                  <input type="hidden" name="list" value={b.list} />
+                  <input type="hidden" name="back" value={here} />
+                  <button
+                    className={`w-full rounded-2xl border py-3 text-sm font-semibold transition active:scale-95 ${on ? "text-white" : "border-line bg-surface"}`}
+                    style={on ? { background: color, borderColor: color } : undefined}
+                    aria-pressed={on}
+                  >
+                    {on ? b.on : b.label}
+                  </button>
+                </form>
+              );
+            })}
           </div>
 
           {match && (match.reasons.length > 0 || match.warning) && (
@@ -171,14 +205,29 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
             variant="button"
           />
 
-          {ownerContact && (
-            <a
-              href={`https://wa.me/${ownerContact}?text=${encodeURIComponent(`Sou responsável pelo ${place.name} e quero atualizar a página no Kombin.`)}`}
-              className="block text-center text-sm text-muted underline"
-            >
-              É dono deste lugar? Fale com a gente
-            </a>
+          {(place.menuUrl || place.instagram) && (
+            <div className="flex gap-2 text-sm">
+              {place.menuUrl && (
+                <a href={place.menuUrl} target="_blank" rel="noopener" className="flex-1 rounded-2xl bg-surface py-3 text-center font-semibold">
+                  Ver cardápio
+                </a>
+              )}
+              {place.instagram && (
+                <a
+                  href={`https://instagram.com/${place.instagram}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex-1 rounded-2xl bg-surface py-3 text-center font-semibold"
+                >
+                  @{place.instagram}
+                </a>
+              )}
+            </div>
           )}
+
+          <Link href={`/painel/reivindicar/${place.id}`} className="block text-center text-sm text-muted underline">
+            É dono deste lugar? Acesse o painel
+          </Link>
         </section>
       </main>
 

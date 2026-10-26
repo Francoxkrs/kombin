@@ -1,8 +1,8 @@
-import type { Place } from "./types";
+import type { Place } from "../src/lib/types";
 
 /**
- * Lugares FICTÍCIOS para rodar o app sem Supabase (modo demonstração).
- * Os nomes não são restaurantes reais. A base real vem do script de ingestão.
+ * Lugares FICTÍCIOS usados nos testes e no seed do banco local (supabase/seed.sql).
+ * Os nomes não são restaurantes reais. A base real vem do script de ingestão e do admin.
  */
 const base = {
   googlePlaceId: null,
@@ -10,6 +10,7 @@ const base = {
   whatsapp: "5567999999999",
   instagram: null,
   coverUrl: null,
+  menuUrl: null,
   status: "approved" as const,
   aiSummary: null,
 };
@@ -18,6 +19,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-adega",
+    cuisines: ["italiana"],
     name: "Adega Lume",
     category: "Bistrô e vinhos",
     neighborhood: "Jardim dos Estados",
@@ -32,6 +34,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-varanda",
+    cuisines: ["petiscos"],
     name: "Varanda do Samba",
     category: "Bar e petiscos",
     neighborhood: "Centro",
@@ -46,6 +49,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-omakase",
+    cuisines: ["japonesa"],
     name: "Kaze Omakase",
     category: "Japonesa",
     neighborhood: "Carandá Bosque",
@@ -60,6 +64,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-quintal",
+    cuisines: ["regional", "carnes"],
     name: "Quintal Pantaneiro",
     category: "Regional",
     neighborhood: "Chácara Cachoeira",
@@ -74,6 +79,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-chopperia",
+    cuisines: ["petiscos"],
     name: "Chopperia Afonso Pena",
     category: "Choperia",
     neighborhood: "Centro",
@@ -88,6 +94,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-grao",
+    cuisines: ["cafe"],
     name: "Grão & Página",
     category: "Cafeteria",
     neighborhood: "Vila Planalto",
@@ -102,6 +109,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-trattoria",
+    cuisines: ["italiana", "pizza"],
     name: "Trattoria Nonna Ida",
     category: "Italiana",
     neighborhood: "Jardim dos Estados",
@@ -116,6 +124,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-rooftop",
+    cuisines: ["petiscos"],
     name: "Rooftop 360",
     category: "Drinks",
     neighborhood: "Carandá Bosque",
@@ -130,6 +139,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-burger",
+    cuisines: ["hamburguer"],
     name: "Brasa Burger",
     category: "Hambúrguer",
     neighborhood: "Monte Castelo",
@@ -144,6 +154,7 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-boteco",
+    cuisines: ["petiscos"],
     name: "Boteco da Esquina",
     category: "Boteco",
     neighborhood: "Amambaí",
@@ -154,5 +165,35 @@ export const DEMO_PLACES: Place[] = [
     seedCover: true,
     vibe: { pagode: 8.5, "happy-hour": 7.5, aniversario: 7, encontro: 2 },
     aiSummary: "Mesas na calçada, roda de samba no sábado.",
+  },
+  {
+    ...base,
+    id: "demo-forno",
+    cuisines: ["pizza"],
+    name: "Forno da Vila",
+    category: "Pizzaria",
+    neighborhood: "Tiradentes",
+    lat: -20.4801,
+    lng: -54.5902,
+    seedSpend: 2,
+    seedNoise: 2,
+    seedCover: false,
+    vibe: { aniversario: 9, familia: 8.5, "happy-hour": 6.5, encontro: 6 },
+    aiSummary: "Mesas longas, forno à lenha e espaço para grupo grande.",
+  },
+  {
+    ...base,
+    id: "demo-sushi",
+    cuisines: ["japonesa"],
+    name: "Sushi Rio Negro",
+    category: "Rodízio japonês",
+    neighborhood: "Centro",
+    lat: -20.4672,
+    lng: -54.6141,
+    seedSpend: 3,
+    seedNoise: 2,
+    seedCover: false,
+    vibe: { aniversario: 8.5, familia: 7, encontro: 6.5, "happy-hour": 6 },
+    aiSummary: "Salão amplo com mesas para grupo e esteira de rodízio.",
   },
 ];

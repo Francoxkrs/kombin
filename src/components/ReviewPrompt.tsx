@@ -32,7 +32,7 @@ export async function ReviewPrompt() {
   }
 
   const repo = getRepo();
-  const delayMin = Number(process.env.REVIEW_DELAY_MINUTES ?? (repo.mode === "demo" ? 1 : 90));
+  const delayMin = Number(process.env.REVIEW_DELAY_MINUTES ?? 90);
   if (!isDue(pending.t, delayMin)) return null;
   const reviewed = (jar.get(REVIEWED_COOKIE)?.value ?? "").split(",");
   if (reviewed.includes(pending.p)) return null;

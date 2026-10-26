@@ -5,16 +5,17 @@
  */
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseSecretKey, supabaseUrl } from "../src/lib/supabase/env";
 
 config({ path: ".env.local" });
 config();
 
 async function main() {
   const key = process.env.GOOGLE_MAPS_API_KEY;
-  const url = process.env.SUPABASE_URL;
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = supabaseUrl();
+  const service = supabaseSecretKey();
   if (!key || !url || !service) {
-    console.error("Defina GOOGLE_MAPS_API_KEY, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY");
+    console.error("Defina GOOGLE_MAPS_API_KEY, NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY");
     process.exit(1);
   }
   const db = createClient(url, service);

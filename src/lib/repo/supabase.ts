@@ -1,7 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newCode } from "../code";
-import type { Place, PlaceSignals } from "../types";
-import type { PlacePatch, Repo } from "./types";
+import type {
+  DecisionSession,
+  LeadKind,
+  MicroReview,
+  Place,
+  PlaceSignals,
+  PlaceStatus,
+  Vote,
+} from "../types";
 
 interface PlaceRow {
   id: string;
@@ -15,6 +22,8 @@ interface PlaceRow {
   whatsapp: string | null;
   instagram: string | null;
   cover_url: string | null;
+  menu_url: string | null;
+  cuisines: string[] | null;
   status: Place["status"];
   seed_spend: Place["seedSpend"];
   seed_noise: Place["seedNoise"];
@@ -24,7 +33,7 @@ interface PlaceRow {
 }
 
 const PLACE_COLUMNS =
-  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary";
+  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary";
 
 function toPlace(r: PlaceRow): Place {
   return {
@@ -39,6 +48,8 @@ function toPlace(r: PlaceRow): Place {
     whatsapp: r.whatsapp,
     instagram: r.instagram,
     coverUrl: r.cover_url,
+    menuUrl: r.menu_url,
+    cuisines: r.cuisines ?? [],
     status: r.status,
     seedSpend: r.seed_spend,
     seedNoise: r.seed_noise,
@@ -48,53 +59,153 @@ function toPlace(r: PlaceRow): Place {
   };
 }
 
+export type PlacePatch = Partial<
+  Pick<
+    Place,
+    | "name"
+    | "category"
+    | "address"
+    | "status"
+    | "whatsapp"
+    | "instagram"
+    | "coverUrl"
+    | "menuUrl"
+    | "cuisines"
+    | "seedSpend"
+    | "seedNoise"
+    | "seedCover"
+    | "vibe"
+    | "neighborhood"
+    | "googlePlaceId"
+  >
+>;
+
+const PATCH_COLUMNS: Record<keyof PlacePatch, string> = {
+  name: "name",
+  category: "category",
+  address: "address",
+  status: "status",
+  whatsapp: "whatsapp",
+  instagram: "instagram",
+  coverUrl: "cover_url",
+  menuUrl: "menu_url",
+  cuisines: "cuisines",
+  seedSpend: "seed_spend",
+  seedNoise: "seed_noise",
+  seedCover: "seed_cover",
+  vibe: "vibe",
+  neighborhood: "neighborhood",
+  googlePlaceId: "google_place_id",
+};
+
+function patchToRow(patch: PlacePatch): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const [k, col] of Object.entries(PATCH_COLUMNS)) {
+    const v = patch[k as keyof PlacePatch];
+    if (v !== undefined) row[col] = v;
+  }
+  return row;
+}
+
 function check<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(`Supabase: ${res.error.message}`);
   return res.data;
 }
 
-export function createSupabaseRepo(url: string, serviceKey: string): Repo {
-  const db: SupabaseClient = createClient(url, serviceKey, {
-    auth: { persistSession: false },
+export interface Profile {
+  id: string;
+  name: string | null;
+  avatarUrl: string | null;
+  role: "user" | "admin";
+}
+
+export interface Claim {
+  id: number;
+  placeId: string;
+  placeName: string;
+  userId: string;
+  userName: string | null;
+  contact: string;
+  message: string | null;
+  createdAt: string;
+}
+
+export interface PlaceStats {
+  impressions: { occasion: string; count: number }[];
+  whatsapp: number;
+  directions: number;
+  saves: number;
+  reviews: number;
+}
+
+export type SavedList = "want" | "been";
+
+/**
+ * Acesso ao banco com a chave secreta, SÓ no servidor. Toda regra de quem pode
+ * fazer o quê é checada no código das rotas antes de chamar estas funções.
+ */
+export function createRepo(url: string, secretKey: string) {
+  const db: SupabaseClient = createClient(url, secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  return {
-    mode: "supabase",
+  const sinceIso = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 
-    async listPlaces(status) {
+  return {
+    db,
+
+    // ---------- Lugares ----------
+
+    async listPlaces(status?: PlaceStatus): Promise<Place[]> {
       let q = db.from("places").select(PLACE_COLUMNS).order("name");
       if (status) q = q.eq("status", status);
       return (check(await q) as PlaceRow[]).map(toPlace);
     },
 
-    async getPlace(id) {
-      const res = await db.from("places").select(PLACE_COLUMNS).eq("id", id).maybeSingle();
-      const row = check(res) as PlaceRow | null;
+    async getPlace(id: string): Promise<Place | null> {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+      const row = check(
+        await db.from("places").select(PLACE_COLUMNS).eq("id", id).maybeSingle(),
+      ) as PlaceRow | null;
       return row ? toPlace(row) : null;
     },
 
-    async getPlaces(ids) {
+    async getPlaces(ids: string[]): Promise<Place[]> {
       if (ids.length === 0) return [];
       const rows = check(await db.from("places").select(PLACE_COLUMNS).in("id", ids)) as PlaceRow[];
       const byId = new Map(rows.map((r) => [r.id, toPlace(r)]));
       return ids.map((id) => byId.get(id)).filter((p): p is Place => !!p);
     },
 
-    async updatePlace(id, patch: PlacePatch) {
-      const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (patch.status !== undefined) row.status = patch.status;
-      if (patch.whatsapp !== undefined) row.whatsapp = patch.whatsapp;
-      if (patch.instagram !== undefined) row.instagram = patch.instagram;
-      if (patch.coverUrl !== undefined) row.cover_url = patch.coverUrl;
-      if (patch.seedSpend !== undefined) row.seed_spend = patch.seedSpend;
-      if (patch.seedNoise !== undefined) row.seed_noise = patch.seedNoise;
-      if (patch.seedCover !== undefined) row.seed_cover = patch.seedCover;
-      if (patch.vibe !== undefined) row.vibe = patch.vibe;
-      if (patch.neighborhood !== undefined) row.neighborhood = patch.neighborhood;
-      check(await db.from("places").update(row).eq("id", id));
+    async createPlace(patch: PlacePatch & { name: string }): Promise<string> {
+      const row = check(
+        await db.from("places").insert(patchToRow(patch)).select("id").single(),
+      ) as { id: string };
+      return row.id;
     },
 
-    async getSignals() {
+    async updatePlace(id: string, patch: PlacePatch): Promise<void> {
+      check(
+        await db
+          .from("places")
+          .update({ ...patchToRow(patch), updated_at: new Date().toISOString() })
+          .eq("id", id),
+      );
+    },
+
+    async uploadCover(placeId: string, file: File): Promise<string> {
+      const ext = (file.type.split("/")[1] ?? "jpg").replace("jpeg", "jpg");
+      const path = `${placeId}/${Date.now()}.${ext}`;
+      const { error } = await db.storage
+        .from("covers")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw new Error(`Upload: ${error.message}`);
+      return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
+    },
+
+    // ---------- Sinais da galera ----------
+
+    async getSignals(): Promise<Map<string, PlaceSignals>> {
       const rows = check(
         await db.from("place_signals").select("place_id, reviews, spend_avg, noise_avg, cover_ratio"),
       ) as {
@@ -104,23 +215,23 @@ export function createSupabaseRepo(url: string, serviceKey: string): Repo {
         noise_avg: number;
         cover_ratio: number;
       }[];
-      return new Map<string, PlaceSignals>(
+      return new Map(
         rows.map((r) => [
           r.place_id,
-          {
-            reviews: r.reviews,
-            spendAvg: r.spend_avg,
-            noiseAvg: r.noise_avg,
-            coverRatio: r.cover_ratio,
-          },
+          { reviews: r.reviews, spendAvg: r.spend_avg, noiseAvg: r.noise_avg, coverRatio: r.cover_ratio },
         ]),
       );
     },
 
-    async addMicroReview(r) {
+    /** Com conta: substitui a avaliação anterior da pessoa naquele lugar. */
+    async addMicroReview(r: MicroReview & { userId: string | null }): Promise<void> {
+      if (r.userId) {
+        check(await db.from("micro_reviews").delete().eq("place_id", r.placeId).eq("user_id", r.userId));
+      }
       check(
         await db.from("micro_reviews").insert({
           place_id: r.placeId,
+          user_id: r.userId,
           device_id: r.deviceId,
           occasion: r.occasion,
           spend: r.spend,
@@ -130,13 +241,28 @@ export function createSupabaseRepo(url: string, serviceKey: string): Repo {
       );
     },
 
-    async createSession(occasion, placeIds) {
+    async countUserReviews(userId: string): Promise<number> {
+      const { count, error } = await db
+        .from("micro_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+
+    // ---------- Decidir com o grupo ----------
+
+    async createSession(occasion: string, placeIds: string[], userId: string | null): Promise<string> {
       const code = newCode();
-      check(await db.from("decision_sessions").insert({ code, occasion, place_ids: placeIds }));
+      check(
+        await db
+          .from("decision_sessions")
+          .insert({ code, occasion, place_ids: placeIds, created_by: userId }),
+      );
       return code;
     },
 
-    async getSession(code) {
+    async getSession(code: string): Promise<DecisionSession | null> {
       const row = check(
         await db
           .from("decision_sessions")
@@ -149,17 +275,14 @@ export function createSupabaseRepo(url: string, serviceKey: string): Repo {
         : null;
     },
 
-    async getVotes(code) {
+    async getVotes(code: string): Promise<Vote[]> {
       const rows = check(
-        await db
-          .from("decision_votes")
-          .select("device_id, place_id, voter_name")
-          .eq("session_code", code),
+        await db.from("decision_votes").select("device_id, place_id, voter_name").eq("session_code", code),
       ) as { device_id: string; place_id: string; voter_name: string | null }[];
       return rows.map((r) => ({ deviceId: r.device_id, placeId: r.place_id, voterName: r.voter_name }));
     },
 
-    async castVote(code, vote) {
+    async castVote(code: string, vote: Vote): Promise<void> {
       check(
         await db.from("decision_votes").upsert({
           session_code: code,
@@ -170,19 +293,21 @@ export function createSupabaseRepo(url: string, serviceKey: string): Repo {
       );
     },
 
-    async logLead(placeId, occasion, kind, deviceId) {
-      check(
-        await db
-          .from("lead_clicks")
-          .insert({ place_id: placeId, occasion, kind, device_id: deviceId }),
-      );
+    // ---------- Métricas para o restaurante ----------
+
+    async logLead(placeId: string, occasion: string | null, kind: LeadKind, deviceId: string) {
+      check(await db.from("lead_clicks").insert({ place_id: placeId, occasion, kind, device_id: deviceId }));
     },
 
-    async leadCounts(sinceDays) {
-      const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+    async addImpressions(placeIds: string[], occasion: string) {
+      if (placeIds.length === 0) return;
+      check(await db.rpc("add_impressions", { place_ids: placeIds, occ: occasion }));
+    },
+
+    async leadCounts(days: number) {
       const rows = check(
-        await db.from("lead_clicks").select("place_id, kind").gte("created_at", since),
-      ) as { place_id: string; kind: "whatsapp" | "directions" }[];
+        await db.from("lead_clicks").select("place_id, kind").gte("created_at", sinceIso(days)),
+      ) as { place_id: string; kind: LeadKind }[];
       const counts = new Map<string, { whatsapp: number; directions: number }>();
       for (const r of rows) {
         const c = counts.get(r.place_id) ?? { whatsapp: 0, directions: 0 };
@@ -191,5 +316,167 @@ export function createSupabaseRepo(url: string, serviceKey: string): Repo {
       }
       return [...counts].map(([placeId, c]) => ({ placeId, ...c }));
     },
+
+    async placeStats(placeId: string, days: number): Promise<PlaceStats> {
+      const since = sinceIso(days);
+      const [imp, leads, saves, reviews] = await Promise.all([
+        db
+          .from("place_impressions")
+          .select("occasion, count")
+          .eq("place_id", placeId)
+          .gte("day", since.slice(0, 10)),
+        db.from("lead_clicks").select("kind").eq("place_id", placeId).gte("created_at", since),
+        db.from("saved_places").select("user_id", { count: "exact", head: true }).eq("place_id", placeId),
+        db.from("micro_reviews").select("id", { count: "exact", head: true }).eq("place_id", placeId),
+      ]);
+      const byOcc = new Map<string, number>();
+      for (const r of (check(imp) as { occasion: string; count: number }[]) ?? []) {
+        byOcc.set(r.occasion, (byOcc.get(r.occasion) ?? 0) + r.count);
+      }
+      const kinds = check(leads) as { kind: LeadKind }[];
+      return {
+        impressions: [...byOcc].map(([occasion, count]) => ({ occasion, count })).sort((a, b) => b.count - a.count),
+        whatsapp: kinds.filter((k) => k.kind === "whatsapp").length,
+        directions: kinds.filter((k) => k.kind === "directions").length,
+        saves: saves.count ?? 0,
+        reviews: reviews.count ?? 0,
+      };
+    },
+
+    // ---------- Contas ----------
+
+    async getProfile(userId: string): Promise<Profile | null> {
+      const row = check(
+        await db.from("profiles").select("id, name, avatar_url, role").eq("id", userId).maybeSingle(),
+      ) as { id: string; name: string | null; avatar_url: string | null; role: Profile["role"] } | null;
+      return row ? { id: row.id, name: row.name, avatarUrl: row.avatar_url, role: row.role } : null;
+    },
+
+    /** Garante o perfil (o gatilho do banco cria; isto cobre contas criadas antes dele). */
+    async ensureProfile(userId: string, name: string | null, avatarUrl: string | null) {
+      check(
+        await db
+          .from("profiles")
+          .upsert({ id: userId, name, avatar_url: avatarUrl }, { onConflict: "id", ignoreDuplicates: true }),
+      );
+    },
+
+    async updateProfileName(userId: string, name: string) {
+      check(await db.from("profiles").update({ name }).eq("id", userId));
+    },
+
+    async setSaved(userId: string, placeId: string, list: SavedList, saved: boolean) {
+      if (saved) {
+        check(
+          await db
+            .from("saved_places")
+            .upsert({ user_id: userId, place_id: placeId, list }, { ignoreDuplicates: true }),
+        );
+      } else {
+        check(
+          await db.from("saved_places").delete().eq("user_id", userId).eq("place_id", placeId).eq("list", list),
+        );
+      }
+    },
+
+    async savedLists(userId: string, placeId: string): Promise<SavedList[]> {
+      const rows = check(
+        await db.from("saved_places").select("list").eq("user_id", userId).eq("place_id", placeId),
+      ) as { list: SavedList }[];
+      return rows.map((r) => r.list);
+    },
+
+    async listSaved(userId: string, list: SavedList): Promise<Place[]> {
+      const rows = check(
+        await db
+          .from("saved_places")
+          .select("place_id, created_at")
+          .eq("user_id", userId)
+          .eq("list", list)
+          .order("created_at", { ascending: false }),
+      ) as { place_id: string }[];
+      return this.getPlaces(rows.map((r) => r.place_id));
+    },
+
+    // ---------- Donos de restaurante ----------
+
+    async ownedPlaces(userId: string): Promise<Place[]> {
+      const rows = check(
+        await db.from("place_owners").select("place_id").eq("user_id", userId),
+      ) as { place_id: string }[];
+      return this.getPlaces(rows.map((r) => r.place_id));
+    },
+
+    async isOwner(userId: string, placeId: string): Promise<boolean> {
+      const { count } = await db
+        .from("place_owners")
+        .select("place_id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("place_id", placeId);
+      return (count ?? 0) > 0;
+    },
+
+    async createClaim(placeId: string, userId: string, contact: string, message: string | null) {
+      const { error } = await db
+        .from("place_claims")
+        .insert({ place_id: placeId, user_id: userId, contact, message });
+      // Pedido repetido em aberto: tudo bem, já está na fila.
+      if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    },
+
+    async hasOpenClaim(userId: string, placeId: string): Promise<boolean> {
+      const { count } = await db
+        .from("place_claims")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("place_id", placeId)
+        .eq("status", "pending");
+      return (count ?? 0) > 0;
+    },
+
+    async listOpenClaims(): Promise<Claim[]> {
+      const rows = check(
+        await db
+          .from("place_claims")
+          .select("id, place_id, user_id, contact, message, created_at, places(name), profiles(name)")
+          .eq("status", "pending")
+          .order("created_at"),
+      ) as unknown as {
+        id: number;
+        place_id: string;
+        user_id: string;
+        contact: string;
+        message: string | null;
+        created_at: string;
+        places: { name: string } | null;
+        profiles: { name: string | null } | null;
+      }[];
+      return rows.map((r) => ({
+        id: r.id,
+        placeId: r.place_id,
+        placeName: r.places?.name ?? "?",
+        userId: r.user_id,
+        userName: r.profiles?.name ?? null,
+        contact: r.contact,
+        message: r.message,
+        createdAt: r.created_at,
+      }));
+    },
+
+    async resolveClaim(id: number, approve: boolean) {
+      const claim = check(
+        await db.from("place_claims").select("place_id, user_id").eq("id", id).single(),
+      ) as { place_id: string; user_id: string };
+      if (approve) {
+        check(
+          await db
+            .from("place_owners")
+            .upsert({ place_id: claim.place_id, user_id: claim.user_id }, { ignoreDuplicates: true }),
+        );
+      }
+      check(await db.from("place_claims").update({ status: approve ? "approved" : "rejected" }).eq("id", id));
+    },
   };
 }
+
+export type Repo = ReturnType<typeof createRepo>;

@@ -18,7 +18,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { cuisinesFromGoogleTypes } from "../src/lib/cuisines";
 import { vibeCheck, visionModelName, type VisionImage, type VisionProvider } from "./lib/vision";
+import { supabaseSecretKey, supabaseUrl as envSupabaseUrl } from "../src/lib/supabase/env";
 
 config({ path: ".env.local" });
 config();
@@ -40,22 +42,28 @@ const DELAY_MS = Number(opt("delay-ms", PROVIDER === "gemini" ? "6500" : "300"))
 const APPROVE_AT = 7;
 const REVIEW_AT = 5;
 
+// Foco em restaurante: a maioria das buscas é por tipo de comida.
 const QUERIES = [
   "restaurante",
   "restaurante romântico",
-  "bistrô",
-  "bar",
-  "bar com música ao vivo",
-  "choperia",
+  "restaurante para família",
   "pizzaria",
   "restaurante japonês",
   "hamburgueria",
-  "cafeteria",
-  "rooftop drinks",
-  "restaurante para família",
-  "comida regional pantaneira",
+  "restaurante italiano",
   "churrascaria",
+  "comida regional pantaneira",
+  "restaurante de frutos do mar",
+  "restaurante árabe",
+  "restaurante mexicano",
+  "bistrô",
+  "bar com petiscos e música ao vivo",
+  "choperia",
+  "cafeteria",
 ];
+
+/** Só entra lugar de comer e beber. */
+const FOOD_TYPES = ["restaurant", "food", "bar", "cafe", "bakery", "meal_takeaway"];
 
 // Retângulo em volta da área urbana de Campo Grande.
 const CAMPO_GRANDE = {
@@ -78,6 +86,8 @@ interface GPlace {
   location?: { latitude: number; longitude: number };
   rating?: number;
   userRatingCount?: number;
+  primaryType?: string;
+  types?: string[];
   primaryTypeDisplayName?: { text: string };
   businessStatus?: string;
   addressComponents?: { longText: string; types: string[] }[];
@@ -91,6 +101,8 @@ const FIELDS = [
   "places.location",
   "places.rating",
   "places.userRatingCount",
+  "places.primaryType",
+  "places.types",
   "places.primaryTypeDisplayName",
   "places.businessStatus",
   "places.addressComponents",
@@ -147,10 +159,10 @@ function neighborhood(p: GPlace): string | null {
 }
 
 async function main() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = envSupabaseUrl();
+  const supabaseKey = supabaseSecretKey();
   if (!DRY_RUN && (!supabaseUrl || !supabaseKey)) {
-    console.error("Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, ou rode com --dry-run");
+    console.error("Defina NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY, ou rode com --dry-run");
     process.exit(1);
   }
   const db = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -174,6 +186,7 @@ async function main() {
     .filter(
       (p) =>
         p.businessStatus !== "CLOSED_PERMANENTLY" &&
+        (p.types ?? []).some((t) => FOOD_TYPES.some((f) => t === f || t.endsWith(`_${f}`))) &&
         (p.rating ?? 0) >= MIN_RATING &&
         (p.userRatingCount ?? 0) >= MIN_REVIEWS &&
         (p.photos?.length ?? 0) > 0 &&
@@ -215,6 +228,7 @@ async function main() {
         google_place_id: p.id,
         name,
         category: p.primaryTypeDisplayName?.text ?? null,
+        cuisines: cuisinesFromGoogleTypes([p.primaryType ?? "", ...(p.types ?? [])]),
         neighborhood: neighborhood(p),
         address: p.formattedAddress ?? null,
         lat: p.location?.latitude ?? null,

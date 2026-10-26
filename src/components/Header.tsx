@@ -1,6 +1,23 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 
-export function Header({ back }: { back?: { href: string; label: string } }) {
+export function Avatar({ name, url, size = 32 }: { name: string; url: string | null; size?: number }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element -- avatar externo (Google), sem otimização
+    return <img src={url} alt="" width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} referrerPolicy="no-referrer" />;
+  }
+  return (
+    <span
+      className="grid place-items-center rounded-full bg-foreground font-semibold text-background"
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
+export async function Header({ back }: { back?: { href: string; label: string } }) {
+  const user = await getCurrentUser();
   return (
     <header className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
       {back ? (
@@ -13,6 +30,15 @@ export function Header({ back }: { back?: { href: string; label: string } }) {
             K
           </span>
           <span className="text-xl font-bold tracking-tight">kombin</span>
+        </Link>
+      )}
+      {user ? (
+        <Link href="/perfil" aria-label="Seu perfil" className="rounded-full ring-2 ring-surface">
+          <Avatar name={user.name} url={user.avatarUrl} />
+        </Link>
+      ) : (
+        <Link href="/entrar" className="rounded-full border border-line bg-surface px-4 py-1.5 text-sm font-semibold">
+          Entrar
         </Link>
       )}
     </header>

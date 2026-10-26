@@ -18,6 +18,9 @@ export interface Place {
   whatsapp: string | null;
   instagram: string | null;
   coverUrl: string | null;
+  menuUrl: string | null;
+  /** Tipos de comida (slugs de src/lib/cuisines.ts). */
+  cuisines: string[];
   status: PlaceStatus;
   /** Estimativas iniciais (curadoria ou IA). Valem como uma "visita" de peso baixo. */
   seedSpend: SpendBand | null;
