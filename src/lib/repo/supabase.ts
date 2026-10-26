@@ -225,12 +225,12 @@ export function createRepo(url: string, secretKey: string) {
       );
     },
 
-    async uploadCover(placeId: string, file: File): Promise<string> {
-      const ext = (file.type.split("/")[1] ?? "jpg").replace("jpeg", "jpg");
-      const path = `${placeId}/${Date.now()}.${ext}`;
+    /** Foto já validada e sem metadados (veja src/lib/upload.ts). */
+    async uploadCover(placeId: string, image: { bytes: Uint8Array; type: string; ext: string }): Promise<string> {
+      const path = `${placeId}/${Date.now()}.${image.ext}`;
       const { error } = await db.storage
         .from("covers")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, image.bytes, { contentType: image.type, upsert: false });
       if (error) throw new Error(`Upload: ${error.message}`);
       return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
     },
