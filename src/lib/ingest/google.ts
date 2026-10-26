@@ -275,11 +275,10 @@ export function filterReason(p: GPlace, proof: SocialProof = DEFAULT_PROOF): str
   if (!isFoodPlace(p)) return "não é de comer";
   if ((p.rating ?? 0) < proof.minRating) return `nota abaixo de ${String(proof.minRating).replace(".", ",")}`;
   if ((p.userRatingCount ?? 0) < proof.minReviews) return `menos de ${proof.minReviews} avaliações`;
-  if ((p.photos?.length ?? 0) === 0) return "sem foto";
   return null;
 }
 
-/** Aberto, de comer/beber, com foto e com nota e volume de avaliações mínimos. */
+/** Aberto, de comer/beber e com nota e volume de avaliações mínimos. */
 export function passesFilter(p: GPlace, proof: SocialProof = DEFAULT_PROOF): boolean {
   return filterReason(p, proof) === null;
 }
