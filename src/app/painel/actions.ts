@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { CATALOG_TAG } from "@/lib/catalog";
 import { CUISINES } from "@/lib/cuisines";
 import { getRepo } from "@/lib/repo";
 import { normalizeWhatsapp } from "@/lib/whatsapp";
@@ -54,6 +55,6 @@ export async function saveOwnerDetails(formData: FormData) {
     cuisines,
     ...(coverUrl ? { coverUrl } : {}),
   });
+  updateTag(CATALOG_TAG);
   revalidatePath("/painel");
-  revalidatePath(`/l/${placeId}`);
 }

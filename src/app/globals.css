@@ -1,44 +1,222 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f4ef;
+  --background: #ffffff;
   --surface: #ffffff;
-  --foreground: #151413;
-  --muted: #6f6a63;
-  --line: #e6e0d6;
-  --match: #1f7a4d;
+  --soft: #f4f4f6;
+  --foreground: #0b0b0c;
+  --ink-2: #3b3b42;
+  --muted: #73737c;
+  --line: #e8e8ed;
+  --match: #0c8a47;
+  --match-soft: #e6f6ed;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-soft: var(--soft);
   --color-foreground: var(--foreground);
+  --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-match: var(--match);
-  --font-sans: var(--font-geist-sans);
+  --color-match-soft: var(--match-soft);
+  --font-sans: var(--font-jakarta);
+  --ease-out-expo: var(--ease-out);
+}
+
+html {
+  background: #ececef;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "ss01", "cv11";
+  text-rendering: optimizeLegibility;
 }
 
+/* No computador, o app aparece como um celular no centro. */
+@media (min-width: 640px) {
+  .app-shell {
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.04),
+      0 40px 120px -40px rgb(0 0 0 / 0.35);
+  }
+}
+
+.display {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Toque: afunda de leve, como botão físico. */
+.press {
+  transition: transform 180ms var(--ease-out), opacity 180ms;
+}
+.press:active {
+  transform: scale(0.965);
+}
+
+/* Esqueleto de carregamento. */
+.skeleton {
+  background: linear-gradient(100deg, var(--soft) 30%, #fafafb 50%, var(--soft) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Entrada em cascata (listas). Use style={{ "--i": n }}. */
+.rise {
+  animation: rise 640ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
 @keyframes rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.animate-rise { animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
-@keyframes stamp {
-  0% { opacity: 0; transform: scale(2.2) rotate(-14deg); }
-  60% { opacity: 1; transform: scale(0.92) rotate(-8deg); }
-  100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+.fade-img {
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 600ms var(--ease-out),
+    transform 900ms var(--ease-out);
 }
-.animate-stamp { animation: stamp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.fade-img[data-loaded="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Texto que corre (faixa do Descobrir). */
+.marquee {
+  animation: marquee 28s linear infinite;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- View transitions (navegação) ---------- */
+
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(.nav-forward) {
+  --slide-offset: -48px;
+  animation:
+    140ms ease-in both vt-fade reverse,
+    380ms var(--ease-out) both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --slide-offset: 48px;
+  animation:
+    220ms ease-out 100ms both vt-fade,
+    420ms var(--ease-out) both vt-slide;
+}
+::view-transition-old(.nav-back) {
+  --slide-offset: 48px;
+  animation:
+    140ms ease-in both vt-fade reverse,
+    380ms var(--ease-out) both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --slide-offset: -48px;
+  animation:
+    220ms ease-out 100ms both vt-fade,
+    420ms var(--ease-out) both vt-slide;
+}
+::view-transition-old(.fade-out) {
+  animation: 140ms ease-in both vt-fade reverse;
+}
+::view-transition-new(.fade-in) {
+  animation: 260ms ease-out both vt-fade;
+}
+
+::view-transition-group(.morph) {
+  animation-duration: 460ms;
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: vt-via-blur;
+}
+
+::view-transition-group(tabbar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(tabbar) {
+  display: none;
+}
+::view-transition-new(tabbar) {
+  animation: none;
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--slide-offset) 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes vt-via-blur {
+  35% {
+    filter: blur(2px);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-rise, .animate-stamp { animation: none; }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  .rise,
+  .marquee,
+  .skeleton {
+    animation: none;
+  }
+  .fade-img {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
 }

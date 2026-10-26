@@ -21,6 +21,11 @@ export interface OccasionWeights {
 export interface Occasion {
   slug: string;
   name: string;
+  /** Nome curto para chips. */
+  short: string;
+  emoji: string;
+  /** Etiquetas que contam a favor nesta ocasião (src/lib/tags.ts). */
+  wantTags: string[];
   tagline: string;
   /** Texto do botão de decisão compartilhada. */
   decideLabel: string;
@@ -34,6 +39,9 @@ export interface Occasion {
 export const OCCASIONS: Occasion[] = [
   {
     slug: "encontro",
+    short: "A dois",
+    emoji: "🍷",
+    wantTags: ["vinhos", "reserva", "drinks"],
     name: "A dois, pra conversar",
     tagline: "Luz baixa, sem couvert, mesa que dá pra ouvir o outro.",
     decideLabel: "Decidir com o mozão",
@@ -50,6 +58,9 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "pagode",
+    short: "Pagode",
+    emoji: "🥁",
+    wantTags: ["musica-ao-vivo", "chopp", "grupos", "area-externa"],
     name: "Pagode e porção",
     tagline: "Música ao vivo, mesa grande e porção pra dividir.",
     decideLabel: "Decidir com a galera",
@@ -66,6 +77,9 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "familia",
+    short: "Família",
+    emoji: "🧸",
+    wantTags: ["criancas", "grupos", "estacionamento"],
     name: "Família com criança",
     tagline: "Espaço, cardápio fácil e ninguém olhando torto pro barulho.",
     decideLabel: "Decidir com a família",
@@ -82,6 +96,9 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "happy-hour",
+    short: "Happy hour",
+    emoji: "🍻",
+    wantTags: ["chopp", "drinks", "grupos", "area-externa"],
     name: "Happy hour do trampo",
     tagline: "Chopp gelado, petisco e saída fácil depois do expediente.",
     decideLabel: "Decidir com o time",
@@ -98,6 +115,9 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "aniversario",
+    short: "Aniversário",
+    emoji: "🎉",
+    wantTags: ["grupos", "reserva", "drinks"],
     name: "Aniversário da galera",
     tagline: "Mesa pra muita gente, clima de festa e conta que não assusta.",
     decideLabel: "Decidir com a galera",
@@ -113,6 +133,9 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "cafe",
+    short: "Café",
+    emoji: "☕",
+    wantTags: ["cafe", "sobremesa"],
     name: "Café pra estudar",
     tagline: "Tomada, wi-fi, silêncio e um café que vale a pena.",
     decideLabel: "Decidir com a dupla",
@@ -129,9 +152,39 @@ export const OCCASIONS: Occasion[] = [
   },
 ];
 
+/** "Qualquer ocasião": usado pela busca quando a pessoa não escolhe uma. Vale a melhor nota de vibe. */
+export const ANY_OCCASION: Occasion = {
+  slug: "tudo",
+  name: "Para o seu momento",
+  short: "Qualquer",
+  emoji: "✨",
+  wantTags: [],
+  tagline: "Os lugares de Campo Grande que mais combinam com o que você escolheu.",
+  decideLabel: "Decidir com a galera",
+  decideWho: "galera",
+  color: "#0b0b0c",
+  defaultParty: "3-5",
+  weights: { vibe: 2.5, price: 2, distance: 1.5 },
+};
+
 export function getOccasion(slug: string): Occasion | undefined {
+  if (slug === ANY_OCCASION.slug) return ANY_OCCASION;
   return OCCASIONS.find((o) => o.slug === slug);
 }
+
+/** Nota de vibe do lugar para a ocasião ("tudo" = a melhor nota que ele tem). */
+export function vibeFor(vibe: Record<string, number>, occasion: Occasion): number | undefined {
+  if (occasion.slug !== ANY_OCCASION.slug) return vibe[occasion.slug];
+  const all = Object.values(vibe);
+  return all.length ? Math.max(...all) : undefined;
+}
+
+export const PARTY_OPTIONS = [
+  { value: "2", label: "1 ou 2" },
+  { value: "3-5", label: "3 a 5" },
+  { value: "6+", label: "6 ou mais" },
+] as const;
+export type Party = (typeof PARTY_OPTIONS)[number]["value"];
 
 export const SPEND_LABELS: Record<number, string> = {
   1: "até R$ 40",
@@ -139,6 +192,25 @@ export const SPEND_LABELS: Record<number, string> = {
   3: "R$ 80 a 150",
   4: "R$ 150+",
 };
+
+/** Valor típico por pessoa de cada faixa, para o "R$ 70" dos cards. */
+export const SPEND_TYPICAL: Record<number, string> = {
+  1: "R$ 35",
+  2: "R$ 60",
+  3: "R$ 110",
+  4: "R$ 180",
+};
+
+/** "R$ 60" a partir da média (que pode ser fracionada, vinda das reviews). */
+export function spendTypical(spend: number | null | undefined): string | null {
+  if (spend == null) return null;
+  const lo = Math.floor(spend);
+  const hi = Math.ceil(spend);
+  const val = (k: number) => Number(SPEND_TYPICAL[k].replace(/\D/g, ""));
+  if (lo === hi || !SPEND_TYPICAL[hi]) return SPEND_TYPICAL[Math.max(1, Math.min(4, Math.round(spend)))];
+  const v = val(lo) + (val(hi) - val(lo)) * (spend - lo);
+  return `R$ ${Math.round(v / 5) * 5}`;
+}
 
 export const NOISE_LABELS: Record<number, string> = {
   1: "dá pra conversar",

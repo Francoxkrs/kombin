@@ -1,11 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
+import { CATALOG_TAG } from "@/lib/catalog";
 import { CUISINES } from "@/lib/cuisines";
 import { OCCASIONS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
+import { TAGS } from "@/lib/tags";
 import type { PlacePatch } from "@/lib/repo/supabase";
 import type { Noise, PlaceStatus, SpendBand } from "@/lib/types";
 import { normalizeWhatsapp } from "@/lib/whatsapp";
@@ -15,6 +17,7 @@ export async function setStatus(formData: FormData) {
   const status = String(formData.get("status")) as PlaceStatus;
   if (!["pending", "approved", "rejected"].includes(status)) return;
   await getRepo().updatePlace(String(formData.get("id")), { status });
+  updateTag(CATALOG_TAG);
   revalidatePath("/admin");
 }
 
@@ -46,12 +49,18 @@ function readPlaceForm(formData: FormData): PlacePatch {
     seedNoise: intOrNull(formData.get("seedNoise")) as Noise | null,
     seedCover: cover === "" ? null : cover === "1",
     vibe,
+    tags: formData
+      .getAll("tags")
+      .map(String)
+      .filter((t) => TAGS.some((x) => x.slug === t)),
+    featured: formData.get("featured") === "1",
   };
 }
 
 export async function saveDetails(formData: FormData) {
   await requireAdmin();
   await getRepo().updatePlace(String(formData.get("id")), readPlaceForm(formData));
+  updateTag(CATALOG_TAG);
   revalidatePath("/admin");
 }
 
@@ -61,6 +70,7 @@ export async function createPlace(formData: FormData) {
   const patch = readPlaceForm(formData);
   if (!patch.name) return;
   await getRepo().createPlace({ ...patch, name: patch.name, status: "approved" });
+  updateTag(CATALOG_TAG);
   revalidatePath("/admin");
   redirect("/admin?s=approved");
 }

@@ -1,7 +1,10 @@
 import "server-only";
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { getRepo } from "./repo";
+import type { Profile } from "./repo/supabase";
 import { createAuthClient } from "./supabase/server";
 
 export interface CurrentUser {
@@ -19,28 +22,47 @@ function adminEmails(): string[] {
     .filter(Boolean);
 }
 
-/** Quem está logado nesta requisição (ou null). Uma consulta por requisição. */
+export const profileTag = (userId: string) => `profile-${userId}`;
+
+/** Perfil (nome editado e papel) em cache: não vai ao banco a cada página. */
+function cachedProfile(userId: string, name: string | null, avatarUrl: string | null) {
+  return unstable_cache(
+    async (): Promise<Profile | null> => {
+      const repo = getRepo();
+      const profile = await repo.getProfile(userId);
+      if (profile) return profile;
+      await repo.ensureProfile(userId, name, avatarUrl);
+      return repo.getProfile(userId);
+    },
+    ["profile", userId],
+    { revalidate: 600, tags: [profileTag(userId)] },
+  )();
+}
+
+/**
+ * Quem está logado nesta requisição (ou null). Sem cookie de sessão, nem chama o
+ * Supabase. Com cookie, valida o token (getClaims) e lê o perfil do cache.
+ */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const jar = await cookies();
+  if (!jar.getAll().some((c) => c.name.startsWith("sb-"))) return null;
+
   const supabase = await createAuthClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) return null;
 
-  const meta = user.user_metadata ?? {};
-  const repo = getRepo();
-  let profile = await repo.getProfile(user.id);
-  if (!profile) {
-    await repo.ensureProfile(user.id, meta.full_name ?? meta.name ?? null, meta.avatar_url ?? null);
-    profile = await repo.getProfile(user.id);
-  }
+  const meta = (claims.user_metadata ?? {}) as Record<string, string | undefined>;
+  const email = (claims.email as string | undefined)?.toLowerCase() ?? null;
+  const metaName = meta.full_name ?? meta.name ?? null;
+  const metaAvatar = meta.avatar_url ?? meta.picture ?? null;
+  const profile = await cachedProfile(claims.sub, metaName, metaAvatar);
 
-  const email = user.email?.toLowerCase() ?? null;
   return {
-    id: user.id,
+    id: claims.sub,
     email,
-    name: profile?.name || meta.full_name || email?.split("@")[0] || "Você",
-    avatarUrl: profile?.avatarUrl ?? meta.avatar_url ?? null,
+    name: profile?.name || metaName || email?.split("@")[0] || "Você",
+    avatarUrl: profile?.avatarUrl ?? metaAvatar,
     isAdmin: profile?.role === "admin" || (!!email && adminEmails().includes(email)),
   };
 });

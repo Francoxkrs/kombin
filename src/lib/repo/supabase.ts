@@ -30,10 +30,16 @@ interface PlaceRow {
   seed_cover: boolean | null;
   vibe: Record<string, number> | null;
   ai_summary: string | null;
+  ai_model: string | null;
+  tags: string[] | null;
+  featured: boolean | null;
 }
 
 const PLACE_COLUMNS =
-  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary";
+  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary, ai_model, tags, featured";
+/** Colunas de antes da migração 0003 (tags, featured), para o app não cair se ela ainda não rodou. */
+const LEGACY_PLACE_COLUMNS = PLACE_COLUMNS.replace(", tags, featured", "");
+let placeColumns = PLACE_COLUMNS;
 
 function toPlace(r: PlaceRow): Place {
   return {
@@ -56,6 +62,9 @@ function toPlace(r: PlaceRow): Place {
     seedCover: r.seed_cover,
     vibe: r.vibe ?? {},
     aiSummary: r.ai_summary,
+    aiModel: r.ai_model,
+    tags: r.tags ?? [],
+    featured: !!r.featured,
   };
 }
 
@@ -77,6 +86,9 @@ export type PlacePatch = Partial<
     | "vibe"
     | "neighborhood"
     | "googlePlaceId"
+    | "tags"
+    | "featured"
+    | "aiSummary"
   >
 >;
 
@@ -96,6 +108,9 @@ const PATCH_COLUMNS: Record<keyof PlacePatch, string> = {
   vibe: "vibe",
   neighborhood: "neighborhood",
   googlePlaceId: "google_place_id",
+  tags: "tags",
+  featured: "featured",
+  aiSummary: "ai_summary",
 };
 
 function patchToRow(patch: PlacePatch): Record<string, unknown> {
@@ -110,6 +125,19 @@ function patchToRow(patch: PlacePatch): Record<string, unknown> {
 function check<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(`Supabase: ${res.error.message}`);
   return res.data;
+}
+
+/** Lê lugares; se a migração 0003 não rodou (coluna inexistente, 42703), lê sem as colunas novas. */
+async function selectPlaces<T>(
+  run: (columns: string) => PromiseLike<{ data: T; error: { message: string; code?: string } | null }>,
+): Promise<T> {
+  const res = await run(placeColumns);
+  if (res.error?.code === "42703" && placeColumns !== LEGACY_PLACE_COLUMNS) {
+    console.warn("Kombin: rode supabase/migrations/0003_tags_destaque.sql no SQL Editor do Supabase.");
+    placeColumns = LEGACY_PLACE_COLUMNS;
+    return check(await run(placeColumns));
+  }
+  return check(res);
 }
 
 export interface Profile {
@@ -157,22 +185,24 @@ export function createRepo(url: string, secretKey: string) {
     // ---------- Lugares ----------
 
     async listPlaces(status?: PlaceStatus): Promise<Place[]> {
-      let q = db.from("places").select(PLACE_COLUMNS).order("name");
-      if (status) q = q.eq("status", status);
-      return (check(await q) as PlaceRow[]).map(toPlace);
+      const rows = await selectPlaces((columns) => {
+        const q = db.from("places").select(columns).order("name");
+        return status ? q.eq("status", status) : q;
+      });
+      return (rows as unknown as PlaceRow[]).map(toPlace);
     },
 
     async getPlace(id: string): Promise<Place | null> {
       if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-      const row = check(
-        await db.from("places").select(PLACE_COLUMNS).eq("id", id).maybeSingle(),
-      ) as PlaceRow | null;
+      const row = (await selectPlaces((columns) =>
+        db.from("places").select(columns).eq("id", id).maybeSingle(),
+      )) as unknown as PlaceRow | null;
       return row ? toPlace(row) : null;
     },
 
     async getPlaces(ids: string[]): Promise<Place[]> {
       if (ids.length === 0) return [];
-      const rows = check(await db.from("places").select(PLACE_COLUMNS).in("id", ids)) as PlaceRow[];
+      const rows = (await selectPlaces((columns) => db.from("places").select(columns).in("id", ids))) as unknown as PlaceRow[];
       const byId = new Map(rows.map((r) => [r.id, toPlace(r)]));
       return ids.map((id) => byId.get(id)).filter((p): p is Place => !!p);
     },
@@ -201,6 +231,44 @@ export function createRepo(url: string, secretKey: string) {
         .upload(path, file, { contentType: file.type, upsert: false });
       if (error) throw new Error(`Upload: ${error.message}`);
       return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
+    },
+
+    /** google_place_id de todos os lugares já no banco (para a importação pular). */
+    async knownGoogleIds(): Promise<Set<string>> {
+      const rows = check(
+        await db.from("places").select("google_place_id").not("google_place_id", "is", null),
+      ) as { google_place_id: string }[];
+      return new Set(rows.map((r) => r.google_place_id));
+    },
+
+    /** Grava um lugar vindo da importação do Google (cria ou atualiza pelo place_id). */
+    async upsertImported(row: Record<string, unknown>): Promise<string> {
+      const res = check(
+        await db
+          .from("places")
+          .upsert({ ...row, imported_at: new Date().toISOString() }, { onConflict: "google_place_id" })
+          .select("id")
+          .single(),
+      ) as { id: string };
+      return res.id;
+    },
+
+    /** Lugares do Google que ainda não passaram pelo vibe-check da IA de visão. */
+    async placesWithoutVision(): Promise<{ id: string; name: string; googlePlaceId: string; category: string | null }[]> {
+      const rows = check(
+        await db
+          .from("places")
+          .select("id, name, google_place_id, category")
+          .not("google_place_id", "is", null)
+          .is("ai_model", null)
+          .neq("status", "rejected")
+          .order("name"),
+      ) as { id: string; name: string; google_place_id: string; category: string | null }[];
+      return rows.map((r) => ({ id: r.id, name: r.name, googlePlaceId: r.google_place_id, category: r.category }));
+    },
+
+    async setVision(id: string, row: Record<string, unknown>) {
+      check(await db.from("places").update({ ...row, updated_at: new Date().toISOString() }).eq("id", id));
     },
 
     // ---------- Sinais da galera ----------
@@ -384,6 +452,17 @@ export function createRepo(url: string, secretKey: string) {
         await db.from("saved_places").select("list").eq("user_id", userId).eq("place_id", placeId),
       ) as { list: SavedList }[];
       return rows.map((r) => r.list);
+    },
+
+    /** Todos os lugares salvos da pessoa, por lista (para marcar os corações nas telas). */
+    async savedIndex(userId: string): Promise<{ want: string[]; been: string[] }> {
+      const rows = check(
+        await db.from("saved_places").select("place_id, list").eq("user_id", userId),
+      ) as { place_id: string; list: SavedList }[];
+      return {
+        want: rows.filter((r) => r.list === "want").map((r) => r.place_id),
+        been: rows.filter((r) => r.list === "been").map((r) => r.place_id),
+      };
     },
 
     async listSaved(userId: string, list: SavedList): Promise<Place[]> {

@@ -1,14 +1,16 @@
 import "server-only";
 import { rankPlaces } from "./match";
 import { getOccasion } from "./occasions";
+import { getCatalog } from "./catalog";
+import { cuisineLabel } from "./cuisines";
+import { photoSrc } from "./photos";
 import { getRepo } from "./repo";
 
 export interface DecisionOption {
   id: string;
   name: string;
   subtitle: string;
-  coverUrl: string | null;
-  hasGoogle: boolean;
+  photo: string | null;
   compat: number | null;
   reasons: string[];
   votes: number;
@@ -31,11 +33,13 @@ export async function getDecisionState(code: string, deviceId: string): Promise<
   const occasion = getOccasion(session.occasion);
   if (!occasion) return null;
 
-  const [places, votes, signals] = await Promise.all([
-    repo.getPlaces(session.placeIds),
-    repo.getVotes(code),
-    repo.getSignals(),
-  ]);
+  const [catalog, votes] = await Promise.all([getCatalog(), repo.getVotes(code)]);
+  const missing = session.placeIds.filter((id) => !catalog.byId.has(id));
+  const extra = missing.length ? await repo.getPlaces(missing) : [];
+  const places = session.placeIds
+    .map((id) => catalog.byId.get(id) ?? extra.find((p) => p.id === id))
+    .filter((p) => !!p);
+  const signals = catalog.signals;
   const matches = new Map(rankPlaces(places, signals, occasion).map((m) => [m.place.id, m]));
 
   return {
@@ -52,9 +56,8 @@ export async function getDecisionState(code: string, deviceId: string): Promise<
       return {
         id: p.id,
         name: p.name,
-        subtitle: [p.category, p.neighborhood].filter(Boolean).join(" · "),
-        coverUrl: p.coverUrl,
-        hasGoogle: !!p.googlePlaceId,
+        subtitle: [p.cuisines.map(cuisineLabel)[0] ?? p.category, p.neighborhood].filter(Boolean).join(" · "),
+        photo: photoSrc(p),
         compat: m?.compat ?? null,
         reasons: m?.reasons.slice(0, 2) ?? [],
         votes: pv.length,
