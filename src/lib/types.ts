@@ -18,7 +18,13 @@ export interface Place {
   whatsapp: string | null;
   instagram: string | null;
   coverUrl: string | null;
+  /** Prévia desfocada da foto de capa do dono (BlurHash). */
+  coverBlurhash: string | null;
   menuUrl: string | null;
+  /** Páginas do cardápio, fotografadas pelo dono. */
+  menuPhotos: MenuPhoto[];
+  /** Recado da casa, escrito pelo dono. */
+  about: string | null;
   /** Tipos de comida (slugs de src/lib/cuisines.ts). */
   cuisines: string[];
   status: PlaceStatus;
@@ -35,6 +41,14 @@ export interface Place {
   tags: string[];
   /** Destaque pago: aparece marcado no Descobrir, sem furar os filtros. */
   featured: boolean;
+}
+
+/** Uma página do cardápio, já otimizada no navegador do dono. */
+export interface MenuPhoto {
+  url: string;
+  blurhash: string | null;
+  w: number;
+  h: number;
 }
 
 /** Agregado das micro-reviews de um lugar. */

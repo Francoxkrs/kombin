@@ -93,8 +93,8 @@ test("votação, voto, reivindicação e painel do dono", () => {
   assert.equal(voteBody.parse({ placeId: ID, name: "  Ana\u0000 " }).name, "Ana");
   assert.equal(voteBody.safeParse({ placeId: ID, name: "x".repeat(31) }).success, false);
   assert.equal(claimForm.parse({ placeId: ID, contact: "67 99999-9999", message: "" }).message, null);
-  const owner = ownerForm.parse({ placeId: ID, instagram: "@casa.boa", menuUrl: "", cuisines: ["pizza"] });
+  const owner = ownerForm.parse({ placeId: ID, instagram: "@casa.boa", menuUrl: "", cuisines: ["pizza"], about: "", tags: [] });
   assert.deepEqual([owner.instagram, owner.menuUrl], ["casa.boa", null]);
-  assert.equal(ownerForm.safeParse({ placeId: ID, instagram: "", menuUrl: "javascript:alert(1)", cuisines: [] }).success, false);
-  assert.equal(ownerForm.safeParse({ placeId: ID, instagram: "", menuUrl: "", cuisines: ["nao-existe"] }).success, false);
+  assert.equal(ownerForm.safeParse({ placeId: ID, instagram: "", menuUrl: "javascript:alert(1)", cuisines: [], about: "", tags: [] }).success, false);
+  assert.equal(ownerForm.safeParse({ placeId: ID, instagram: "", menuUrl: "", cuisines: ["nao-existe"], about: "", tags: [] }).success, false);
 });

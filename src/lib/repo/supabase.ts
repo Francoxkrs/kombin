@@ -4,6 +4,7 @@ import type { ChoiceEvent, SearchEvent } from "../taste";
 import type {
   DecisionSession,
   LeadKind,
+  MenuPhoto,
   MicroReview,
   Place,
   PlaceSignals,
@@ -34,13 +35,26 @@ interface PlaceRow {
   ai_model: string | null;
   tags: string[] | null;
   featured: boolean | null;
+  menu_photos?: MenuPhoto[] | null;
+  cover_blurhash?: string | null;
+  about?: string | null;
 }
 
 const PLACE_COLUMNS =
-  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary, ai_model, tags, featured";
-/** Colunas de antes da migração 0003 (tags, featured), para o app não cair se ela ainda não rodou. */
-const LEGACY_PLACE_COLUMNS = PLACE_COLUMNS.replace(", tags, featured", "");
-let placeColumns = PLACE_COLUMNS;
+  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary, ai_model, tags, featured, menu_photos, cover_blurhash, about";
+/**
+ * Colunas de antes das migrações 0005 (cardápio) e 0003 (tags, featured), da mais nova para a
+ * mais antiga, para o app não cair se alguma ainda não rodou.
+ */
+const COLUMN_SETS = [
+  { columns: PLACE_COLUMNS, migration: null },
+  { columns: PLACE_COLUMNS.replace(", menu_photos, cover_blurhash, about", ""), migration: "0005_cardapio_dono.sql" },
+  {
+    columns: PLACE_COLUMNS.replace(", tags, featured, menu_photos, cover_blurhash, about", ""),
+    migration: "0003_tags_destaque.sql",
+  },
+];
+let columnSet = 0;
 /** WhatsApp falso dos lugares fictícios de supabase/seed.sql. */
 const DEMO_WHATSAPP = "5567999999999";
 
@@ -57,7 +71,10 @@ function toPlace(r: PlaceRow): Place {
     whatsapp: r.whatsapp,
     instagram: r.instagram,
     coverUrl: r.cover_url,
+    coverBlurhash: r.cover_blurhash ?? null,
     menuUrl: r.menu_url,
+    menuPhotos: Array.isArray(r.menu_photos) ? r.menu_photos : [],
+    about: r.about ?? null,
     cuisines: r.cuisines ?? [],
     status: r.status,
     seedSpend: r.seed_spend,
@@ -81,7 +98,10 @@ export type PlacePatch = Partial<
     | "whatsapp"
     | "instagram"
     | "coverUrl"
+    | "coverBlurhash"
     | "menuUrl"
+    | "menuPhotos"
+    | "about"
     | "cuisines"
     | "seedSpend"
     | "seedNoise"
@@ -103,7 +123,10 @@ const PATCH_COLUMNS: Record<keyof PlacePatch, string> = {
   whatsapp: "whatsapp",
   instagram: "instagram",
   coverUrl: "cover_url",
+  coverBlurhash: "cover_blurhash",
   menuUrl: "menu_url",
+  menuPhotos: "menu_photos",
+  about: "about",
   cuisines: "cuisines",
   seedSpend: "seed_spend",
   seedNoise: "seed_noise",
@@ -130,15 +153,15 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
   return res.data;
 }
 
-/** Lê lugares; se a migração 0003 não rodou (coluna inexistente, 42703), lê sem as colunas novas. */
+/** Lê lugares; se uma migração não rodou (coluna inexistente, 42703), lê sem as colunas dela. */
 async function selectPlaces<T>(
   run: (columns: string) => PromiseLike<{ data: T; error: { message: string; code?: string } | null }>,
 ): Promise<T> {
-  const res = await run(placeColumns);
-  if (res.error?.code === "42703" && placeColumns !== LEGACY_PLACE_COLUMNS) {
-    console.warn("Kombin: rode supabase/migrations/0003_tags_destaque.sql no SQL Editor do Supabase.");
-    placeColumns = LEGACY_PLACE_COLUMNS;
-    return check(await run(placeColumns));
+  let res = await run(COLUMN_SETS[columnSet].columns);
+  while (res.error?.code === "42703" && columnSet < COLUMN_SETS.length - 1) {
+    columnSet++;
+    console.warn(`Kombin: rode supabase/migrations/${COLUMN_SETS[columnSet].migration} no SQL Editor do Supabase.`);
+    res = await run(COLUMN_SETS[columnSet].columns);
   }
   return check(res);
 }
@@ -226,14 +249,28 @@ export function createRepo(url: string, secretKey: string) {
       );
     },
 
-    /** Foto já validada e sem metadados (veja src/lib/upload.ts). */
-    async uploadCover(placeId: string, image: { bytes: Uint8Array; type: string; ext: string }): Promise<string> {
-      const path = `${placeId}/${Date.now()}.${image.ext}`;
+    /** Foto já validada e sem metadados (veja src/lib/upload.ts), na pasta da capa ou do cardápio. */
+    async uploadImage(
+      placeId: string,
+      image: { bytes: Uint8Array; type: string; ext: string },
+      folder: "capa" | "cardapio" = "capa",
+    ): Promise<string> {
+      const path = `${placeId}/${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${image.ext}`;
       const { error } = await db.storage
         .from("covers")
-        .upload(path, image.bytes, { contentType: image.type, upsert: false });
+        .upload(path, image.bytes, { contentType: image.type, upsert: false, cacheControl: "31536000" });
       if (error) throw new Error(`Upload: ${error.message}`);
       return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
+    },
+
+    /** Apaga do bucket uma foto do próprio lugar (URL de fora ou de outra pasta fica intacta). */
+    async deleteImage(placeId: string, url: string): Promise<void> {
+      const marker = "/storage/v1/object/public/covers/";
+      const i = url.indexOf(marker);
+      if (i < 0) return;
+      const path = decodeURIComponent(url.slice(i + marker.length));
+      if (!path.startsWith(`${placeId}/`) || path.includes("..")) return;
+      await db.storage.from("covers").remove([path]);
     },
 
     /** google_place_id de todos os lugares já no banco (para a importação pular). */

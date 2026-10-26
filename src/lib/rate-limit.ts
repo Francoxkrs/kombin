@@ -28,6 +28,8 @@ export const LIMITS = {
   lead: { max: 1, window: 1800 },
   /** Pedidos de reivindicação por conta. */
   claim: { max: 5, window: 86400 },
+  /** Fotos do painel do restaurante (capa e cardápio), por conta. */
+  upload: { max: 60, window: 3600 },
   /** Salvar/tirar das listas e trocar o nome, por conta. */
   account: { max: 120, window: 600 },
   /** Chamadas que podem cair no Google (fotos e horários) por IP. */

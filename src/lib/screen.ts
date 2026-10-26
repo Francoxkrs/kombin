@@ -14,6 +14,8 @@ export interface PlaceScreen {
   why: string | null;
   compat: number;
   photos: string[];
+  /** Prévia desfocada da primeira foto, quando ela é a capa enviada pelo dono. */
+  blurhash: string | null;
 }
 
 export function placeKind(place: Place): string | null {
@@ -49,6 +51,7 @@ export function toScreen(r: MatchResult): PlaceScreen {
     why: sentence(r.badges.slice(0, 2)),
     compat: r.compat,
     photos: placePhotos(r.place),
+    blurhash: r.place.coverUrl ? r.place.coverBlurhash : null,
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { UtensilsCrossed } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useBlurhash } from "./useBlurhash";
 
 interface Props {
   src: string | null;
@@ -14,10 +15,12 @@ interface Props {
   eager?: boolean;
   /** Classes extras da <img>. */
   imgClassName?: string;
+  /** Prévia desfocada da primeira foto (BlurHash), para não piscar o vazio enquanto carrega. */
+  blurhash?: string | null;
 }
 
 /** Foto com entrada suave. Se nenhuma fonte carregar, fica a superfície da noite com um ícone fino. */
-export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClassName = "" }: Props) {
+export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClassName = "", blurhash }: Props) {
   const sources = [src, ...fallbacks].filter((s): s is string => !!s);
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -25,6 +28,7 @@ export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClas
   const current = sources[index];
   // "relative" junto com "absolute" no className deixaria a caixa com altura zero.
   const position = /\b(absolute|fixed)\b/.test(className) ? "" : "relative";
+  const blur = useBlurhash(index === 0 ? blurhash : null);
 
   const fail = () => {
     setLoaded(false);
@@ -41,6 +45,10 @@ export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClas
 
   return (
     <div className={`${position} overflow-hidden bg-surface ${className}`}>
+      {blur && current && (
+        // eslint-disable-next-line @next/next/no-img-element -- data URL de 32 px, não passa pelo otimizador
+        <img src={blur} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover blur-md" />
+      )}
       {!current && (
         <div className="absolute inset-0 grid place-items-center" aria-hidden>
           <UtensilsCrossed className="size-6 text-muted" strokeWidth={1.25} />

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
 import { LiveFacts } from "@/components/LiveInfo";
+import { MenuGallery } from "@/components/MenuGallery";
 import { MicroReview } from "@/components/MicroReview";
 import { CompatNumber } from "@/components/ui/CompatNumber";
 import { WhatsAppIcon } from "@/components/ui/icons";
@@ -73,7 +74,14 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
     <Page>
       <div className="relative h-[62svh] min-h-[420px]">
         <ViewTransition name={`photo-${place.id}`} share="morph" default="none">
-          <Photo src={photos[0] ?? null} fallbacks={photos.slice(1)} alt={`Foto de ${place.name}`} className="absolute inset-0" eager />
+          <Photo
+            src={photos[0] ?? null}
+            fallbacks={photos.slice(1)}
+            blurhash={place.coverUrl ? place.coverBlurhash : null}
+            alt={`Foto de ${place.name}`}
+            className="absolute inset-0"
+            eager
+          />
         </ViewTransition>
         <div className="scrim-bottom absolute inset-x-0 bottom-0 h-2/3" />
         <div className="absolute inset-x-0 top-0 flex justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -104,6 +112,13 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
           {match?.warning && <p className="mt-3 text-[17px] text-danger">Fique de olho: {lowerFirst(match.warning)}.</p>}
           {match && place.aiSummary && <p className="mt-4 text-[17px] leading-snug text-muted">{place.aiSummary}</p>}
         </section>
+
+        {place.about && (
+          <section className="mt-9 px-5">
+            <h2 className="title text-[28px]">Da casa</h2>
+            <p className="mt-3 text-[19px] leading-snug">“{place.about}”</p>
+          </section>
+        )}
 
         {bestFor.length > 0 && (
           <section className="mt-9 px-5">
@@ -140,7 +155,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
                 </a>
               </Fact>
             )}
-            {place.menuUrl && (
+            {place.menuUrl && place.menuPhotos.length === 0 && (
               <Fact label="Cardápio">
                 <a href={place.menuUrl} target="_blank" rel="noopener" className="underline underline-offset-4">
                   Abrir o cardápio
@@ -156,6 +171,21 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
               : "Gasto, couvert e som são estimativa da curadoria até alguém que foi contar."}
           </p>
         </section>
+
+        {place.menuPhotos.length > 0 && (
+          <section id="cardapio" className="mt-9 scroll-mt-4 px-5">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="title text-[28px]">Cardápio</h2>
+              {place.menuUrl && (
+                <a href={place.menuUrl} target="_blank" rel="noopener" className="text-[15px] text-muted underline underline-offset-4">
+                  Versão online
+                </a>
+              )}
+            </div>
+            <p className="mt-2 mb-4 text-[15px] text-muted">Fotos enviadas pela casa. Toque para ler.</p>
+            <MenuGallery pages={place.menuPhotos} placeName={place.name} />
+          </section>
+        )}
 
         {photos.length > 1 && (
           <section className="mt-9 grid grid-cols-2 gap-1" aria-label={`Mais fotos de ${place.name}`}>
@@ -201,10 +231,16 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
             <a href={`/api/go/directions?${leadQuery}`} className={`${BTN_IPE} flex-1`}>
               Como chegar
             </a>
-            {place.menuUrl && (
-              <a href={place.menuUrl} target="_blank" rel="noopener" className={BTN_LIGHT}>
+            {place.menuPhotos.length > 0 ? (
+              <a href="#cardapio" className={BTN_LIGHT}>
                 Cardápio
               </a>
+            ) : (
+              place.menuUrl && (
+                <a href={place.menuUrl} target="_blank" rel="noopener" className={BTN_LIGHT}>
+                  Cardápio
+                </a>
+              )
             )}
           </>
         )}

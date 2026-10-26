@@ -55,7 +55,8 @@ const securityHeaders = [
 // renderizadas por requisição, o que é mais simples de entender e depurar.
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Foto de capa enviada pelo painel do restaurante (até 2 MB + margem do multipart).
+  // Fotos do painel do restaurante: o navegador reduz antes (~150-260 KB) e o servidor
+  // recusa acima de 2 MB; o limite daqui é essa foto mais a margem do multipart.
   experimental: {
     serverActions: { bodySizeLimit: "3mb" },
   },

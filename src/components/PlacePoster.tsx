@@ -25,7 +25,7 @@ export function PlacePoster({
     <article className="relative">
       <Link href={href} transitionTypes={["nav-forward"]} className="relative block aspect-[4/5]">
         <ViewTransition name={`photo-${place.id}`} share="morph" default="none">
-          <Photo src={place.photos[0] ?? null} fallbacks={place.photos.slice(1)} alt="" className="absolute inset-0" eager={eager} />
+          <Photo src={place.photos[0] ?? null} fallbacks={place.photos.slice(1)} blurhash={place.blurhash} alt="" className="absolute inset-0" eager={eager} />
         </ViewTransition>
         <div className="scrim-bottom absolute inset-x-0 bottom-0 h-3/4" />
         <div className="absolute inset-x-0 bottom-0 px-5 pb-5">
