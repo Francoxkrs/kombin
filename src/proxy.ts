@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { DEVICE_COOKIE } from "@/lib/device-cookie";
+import { supabasePublicKey, supabaseUrl } from "@/lib/supabase/env";
 
 /**
  * Roda antes de cada página:
@@ -17,8 +18,8 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl(),
+    supabasePublicKey(),
     {
       cookies: {
         getAll: () => request.cookies.getAll(),

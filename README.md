@@ -68,8 +68,8 @@ Lugar sem dados fica em 50%. Filtros duros ("sem couvert", orçamento muito abai
 
 ## Ligar a base real
 
-1. Crie um projeto grátis no [Supabase](https://supabase.com). Ligue o CLI a ele (`npx supabase link`) e rode `npx supabase db push`, ou cole os arquivos de `supabase/migrations/` em ordem no SQL Editor.
-2. Preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `ADMIN_EMAILS` (no `.env.local` para rodar scripts, e na Vercel para o site).
+1. Crie um projeto grátis no [Supabase](https://supabase.com), direto ou pela integração da Vercel (Storage > Create > Supabase). **Crie as tabelas:** no SQL Editor do Supabase, cole e rode `supabase/migrations/0001_init.sql` e depois `0002_contas_paineis_culinaria.sql` (ou `npx supabase link` + `npx supabase db push`). Sem isso, as páginas que leem o banco dão erro 500.
+2. Chaves: com a integração da Vercel, as variáveis que ela cria já funcionam. Sem ela, preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SECRET_KEY`. Nos dois casos, cadastre `ADMIN_EMAILS` na Vercel e no `.env.local` (para rodar scripts; `npx vercel env pull .env.local` baixa as da Vercel).
 3. No Google Cloud, ative a **Places API (New)**, crie uma chave e coloque em `GOOGLE_MAPS_API_KEY`. **Antes de rodar qualquer coisa**, crie um alerta de orçamento de US$ 1 e limite a cota diária da API.
 4. Pegue uma chave grátis do Gemini em aistudio.google.com e coloque em `GEMINI_API_KEY` (ou use `ANTHROPIC_API_KEY` com `--provider anthropic`).
 5. Teste a ingestão sem gravar: `npm run ingest -- --dry-run --limit 10`. Confira `scripts/out/`.

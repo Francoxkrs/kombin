@@ -20,6 +20,7 @@ import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { cuisinesFromGoogleTypes } from "../src/lib/cuisines";
 import { vibeCheck, visionModelName, type VisionImage, type VisionProvider } from "./lib/vision";
+import { supabaseSecretKey, supabaseUrl as envSupabaseUrl } from "../src/lib/supabase/env";
 
 config({ path: ".env.local" });
 config();
@@ -158,8 +159,8 @@ function neighborhood(p: GPlace): string | null {
 }
 
 async function main() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+  const supabaseUrl = envSupabaseUrl();
+  const supabaseKey = supabaseSecretKey();
   if (!DRY_RUN && (!supabaseUrl || !supabaseKey)) {
     console.error("Defina NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY, ou rode com --dry-run");
     process.exit(1);
