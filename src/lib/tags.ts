@@ -12,6 +12,8 @@ export const TAGS: Tag[] = [
   { slug: "grupos", label: "Bom pra grupos" },
   { slug: "criancas", label: "Bom pra criança" },
   { slug: "area-externa", label: "Área externa" },
+  /** Salão fechado ou climatizado: sobe no índice quando chove ou esfria em Campo Grande. */
+  { slug: "coberto", label: "Coberto / climatizado" },
   { slug: "reserva", label: "Aceita reserva" },
   { slug: "drinks", label: "Drinks" },
   { slug: "chopp", label: "Chopp" },

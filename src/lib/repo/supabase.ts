@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newCode } from "../code";
+import type { ChoiceEvent, SearchEvent } from "../taste";
 import type {
   DecisionSession,
   LeadKind,
@@ -295,19 +296,31 @@ export function createRepo(url: string, secretKey: string) {
     // ---------- Sinais da galera ----------
 
     async getSignals(): Promise<Map<string, PlaceSignals>> {
-      const rows = check(
-        await db.from("place_signals").select("place_id, reviews, spend_avg, noise_avg, cover_ratio"),
-      ) as {
+      type Row = {
         place_id: string;
         reviews: number;
         spend_avg: number;
         noise_avg: number;
         cover_ratio: number;
-      }[];
+        verified?: number;
+        weight?: number;
+      };
+      const base = "place_id, reviews, spend_avg, noise_avg, cover_ratio";
+      let res = await db.from("place_signals").select(`${base}, verified, weight`);
+      // Sem a migração 0006 a view não tem as colunas de visita confirmada: segue sem elas.
+      if (res.error?.code === "42703") res = await db.from("place_signals").select(base);
+      const rows = check(res) as unknown as Row[];
       return new Map(
         rows.map((r) => [
           r.place_id,
-          { reviews: r.reviews, spendAvg: r.spend_avg, noiseAvg: r.noise_avg, coverRatio: r.cover_ratio },
+          {
+            reviews: r.reviews,
+            spendAvg: r.spend_avg,
+            noiseAvg: r.noise_avg,
+            coverRatio: r.cover_ratio,
+            verified: r.verified ?? undefined,
+            weight: r.weight ?? undefined,
+          },
         ]),
       );
     },
@@ -317,7 +330,7 @@ export function createRepo(url: string, secretKey: string) {
       if (r.userId) {
         check(await db.from("micro_reviews").delete().eq("place_id", r.placeId).eq("user_id", r.userId));
       }
-      const res = await db.from("micro_reviews").insert({
+      const row: Record<string, unknown> = {
         place_id: r.placeId,
         user_id: r.userId,
         device_id: r.deviceId,
@@ -325,10 +338,31 @@ export function createRepo(url: string, secretKey: string) {
         spend: r.spend,
         cover: r.cover,
         noise: r.noise,
-      });
+      };
+      if (r.verified) row.verified = true;
+      let res = await db.from("micro_reviews").insert(row);
+      // Sem a migração 0006 não há a coluna "verified": grava a avaliação mesmo assim.
+      if (res.error && r.verified && res.error.message.includes("verified")) {
+        delete row.verified;
+        res = await db.from("micro_reviews").insert(row);
+      }
       // 23505: este aparelho já avaliou o lugar nesta semana (ou dois envios ao mesmo tempo). Vale a primeira.
       if (res.error?.code === "23505") return;
       check(res);
+    },
+
+    /** Este aparelho clicou em "Como chegar" deste lugar entre `minMinutes` e `maxHours` atrás? */
+    async clickedDirections(placeId: string, deviceId: string, minMinutes: number, maxHours: number): Promise<boolean> {
+      const { count, error } = await db
+        .from("lead_clicks")
+        .select("id", { count: "exact", head: true })
+        .eq("place_id", placeId)
+        .eq("device_id", deviceId)
+        .eq("kind", "directions")
+        .gte("created_at", new Date(Date.now() - maxHours * 3_600_000).toISOString())
+        .lte("created_at", new Date(Date.now() - minMinutes * 60_000).toISOString());
+      if (error) throw new Error(error.message);
+      return (count ?? 0) > 0;
     },
 
     async countUserReviews(userId: string): Promise<number> {
@@ -338,6 +372,89 @@ export function createRepo(url: string, secretKey: string) {
         .eq("user_id", userId);
       if (error) throw new Error(error.message);
       return count ?? 0;
+    },
+
+    // ---------- Buscas e gosto da pessoa ----------
+
+    /** Grava a busca, a menos que seja igual à última deste aparelho nos últimos 10 minutos (voltar não conta). */
+    async logSearch(e: {
+      userId: string | null;
+      deviceId: string;
+      occasion: string;
+      cuisine: string | null;
+      budget: number | null;
+      party: string | null;
+      neighborhood: string | null;
+      tags: string[];
+      quiet: boolean;
+      noCover: boolean;
+    }): Promise<void> {
+      const row = {
+        user_id: e.userId,
+        device_id: e.deviceId,
+        occasion: e.occasion,
+        cuisine: e.cuisine,
+        budget: e.budget,
+        party: e.party,
+        neighborhood: e.neighborhood,
+        tags: [...e.tags].sort(),
+        quiet: e.quiet,
+        no_cover: e.noCover,
+      };
+      const last = check(
+        await db
+          .from("search_log")
+          .select("user_id, occasion, cuisine, budget, party, neighborhood, tags, quiet, no_cover")
+          .eq("device_id", e.deviceId)
+          .gte("created_at", sinceIso(10 / 1440))
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ) as Record<string, unknown> | null;
+      const same = (r: Record<string, unknown>) =>
+        JSON.stringify([r.user_id, r.occasion, r.cuisine, r.budget, r.party, r.neighborhood, r.tags, r.quiet, r.no_cover]);
+      if (last && same(last) === same(row)) return;
+      check(await db.from("search_log").insert(row));
+    },
+
+    /**
+     * O que serve para aprender o gosto: as últimas buscas (da conta, ou do aparelho sem conta)
+     * e os lugares escolhidos (Como chegar e WhatsApp do aparelho, salvos e avaliados da conta).
+     */
+    async tasteEvents(userId: string | null, deviceId: string | null): Promise<{ searches: SearchEvent[]; choices: ChoiceEvent[] }> {
+      const since = sinceIso(180);
+      type SearchRow = { occasion: string; cuisine: string | null; budget: number | null; tags: string[] | null; quiet: boolean; created_at: string };
+      type ChoiceRow = { place_id: string; created_at: string };
+      const none = Promise.resolve({ data: [], error: null });
+      const searchQ = db
+        .from("search_log")
+        .select("occasion, cuisine, budget, tags, quiet, created_at")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      const [searches, leads, saved, reviews] = await Promise.all([
+        userId ? searchQ.eq("user_id", userId) : deviceId ? searchQ.eq("device_id", deviceId) : none,
+        deviceId
+          ? db.from("lead_clicks").select("place_id, created_at").eq("device_id", deviceId).gte("created_at", since).limit(100)
+          : none,
+        userId ? db.from("saved_places").select("place_id, created_at").eq("user_id", userId).limit(100) : none,
+        userId
+          ? db.from("micro_reviews").select("place_id, created_at").eq("user_id", userId).gte("created_at", since).limit(100)
+          : none,
+      ]);
+      return {
+        searches: (check(searches) as SearchRow[]).map((r) => ({
+          at: Date.parse(r.created_at),
+          occasion: r.occasion,
+          cuisine: r.cuisine,
+          budget: r.budget,
+          tags: r.tags ?? [],
+          quiet: r.quiet,
+        })),
+        choices: [leads, saved, reviews].flatMap((r) =>
+          (check(r) as ChoiceRow[]).map((c) => ({ at: Date.parse(c.created_at), placeId: c.place_id })),
+        ),
+      };
     },
 
     // ---------- Decidir com o grupo ----------

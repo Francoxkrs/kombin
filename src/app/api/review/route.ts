@@ -25,6 +25,10 @@ const COOKIE_OPTS = {
   secure: process.env.NODE_ENV === "production",
 };
 
+/** "Como chegar" conta como visita se foi clicado entre meia hora e três dias antes da avaliação. */
+const DIRECTIONS_MIN_MINUTES = 30;
+const DIRECTIONS_MAX_HOURS = 72;
+
 /** Grava a avaliação e devolve quantas este aparelho já fez (para a recompensa). */
 export async function POST(request: NextRequest) {
   const body = await readJson(request, microReviewBody);
@@ -51,7 +55,13 @@ export async function POST(request: NextRequest) {
   const reviewed = (request.cookies.get(REVIEWED_COOKIE)?.value ?? "").split(",").filter(Boolean);
   // Com conta: uma por pessoa por lugar (a nova substitui). Sem conta: uma por aparelho
   // por semana, garantida pelo índice único do banco (o cookie é só para não perguntar de novo).
+  let verified = false;
   if (user || !reviewed.includes(b.placeId)) {
+    verified =
+      b.verifiedVisit === true ||
+      (await repo
+        .clickedDirections(b.placeId, deviceId, DIRECTIONS_MIN_MINUTES, DIRECTIONS_MAX_HOURS)
+        .catch(() => false));
     await repo.addMicroReview({
       userId: user?.id ?? null,
       placeId: b.placeId,
@@ -60,6 +70,7 @@ export async function POST(request: NextRequest) {
       cover: b.cover,
       noise: b.noise,
       deviceId,
+      verified,
     });
     if (!reviewed.includes(b.placeId)) reviewed.push(b.placeId);
   }
@@ -71,7 +82,7 @@ export async function POST(request: NextRequest) {
   revalidateTag(CATALOG_TAG, "max");
 
   const total = user ? await repo.countUserReviews(user.id) : reviewed.length;
-  const res = NextResponse.json({ total, loggedIn: !!user });
+  const res = NextResponse.json({ total, loggedIn: !!user, verified });
   res.cookies.set(REVIEWED_COOKIE, reviewed.slice(-200).join(","), COOKIE_OPTS);
   res.cookies.delete(PENDING_REVIEW_COOKIE);
   return res;

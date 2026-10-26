@@ -13,6 +13,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { BTN_IPE, BTN_LIGHT, btn, chip, ROUND_LIGHT } from "@/components/ui/styles";
 import { getCurrentUser } from "@/lib/auth";
 import { EMPTY_SIGNALS, getCatalog } from "@/lib/catalog";
+import { getMatchContext } from "@/lib/context";
 import { computeMatch } from "@/lib/match";
 import { getOccasion, NOISE_LABELS, OCCASIONS, spendTypical } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
@@ -47,8 +48,9 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
   const asked = getOccasion(typeof sp.o === "string" ? sp.o : "");
   const occasion = asked && asked.slug !== "tudo" ? asked : null;
   const signals = catalog.signals.get(place.id) ?? EMPTY_SIGNALS;
-  const match = occasion ? computeMatch(place, signals, occasion) : null;
   const user = await getCurrentUser();
+  // Mesmo clima e gosto da lista, para o número bater com o que a pessoa acabou de ver.
+  const match = occasion ? computeMatch(place, signals, occasion, await getMatchContext(user?.id ?? null, catalog.byId)) : null;
   const saved = user ? await getSaved(user.id) : { want: [], been: [] };
   const here = `/l/${place.id}${occasion ? `?o=${occasion.slug}` : ""}`;
   const back = occasion ? `/o/${occasion.slug}` : "/";
@@ -148,7 +150,9 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
           </dl>
           <p className="mt-5 text-[14px] text-muted">
             {signals.reviews > 0
-              ? `Gasto, couvert e som vêm de ${signals.reviews} ${signals.reviews === 1 ? "visita" : "visitas"} de quem usa o Kombin.`
+              ? `Gasto, couvert e som vêm de ${signals.reviews} ${signals.reviews === 1 ? "visita" : "visitas"} de quem usa o Kombin${
+                  signals.verified ? `, ${signals.verified} ${signals.verified === 1 ? "confirmada" : "confirmadas"}` : ""
+                }.`
               : "Gasto, couvert e som são estimativa da curadoria até alguém que foi contar."}
           </p>
         </section>
@@ -167,7 +171,13 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
             Conta em três toques quanto gastou, se teve couvert e se dava pra conversar. Isso acerta o índice pra todo mundo.
           </p>
           <div className="mt-5">
-            <MicroReview placeId={place.id} placeName={place.name} occasion={occasion?.slug ?? null} variant="button" />
+            <MicroReview
+              placeId={place.id}
+              placeName={place.name}
+              occasion={occasion?.slug ?? null}
+              coords={place.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : null}
+              variant="button"
+            />
           </div>
         </section>
 
