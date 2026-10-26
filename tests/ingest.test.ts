@@ -44,11 +44,11 @@ const kidsPizza: GPlace = {
   parkingOptions: { freeParkingLot: true },
 };
 
-test("filtro: só lugar aberto, de comida, com foto e prova social", () => {
+test("filtro: só lugar aberto, de comida e com prova social (foto não é exigida)", () => {
   assert.equal(passesFilter(base), true);
   assert.equal(passesFilter({ ...base, rating: 4.1 }), false);
   assert.equal(passesFilter({ ...base, userRatingCount: 90 }), false);
-  assert.equal(passesFilter({ ...base, photos: [] }), false);
+  assert.equal(passesFilter({ ...base, photos: [] }), true);
   assert.equal(passesFilter({ ...base, businessStatus: "CLOSED_PERMANENTLY" }), false);
   assert.equal(passesFilter({ ...base, types: ["gym", "point_of_interest"] }), false);
   assert.equal(passesFilter({ ...base, rating: 4.0 }, { minRating: 4, minReviews: 50 }), true);
