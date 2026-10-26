@@ -307,7 +307,7 @@ export function createRepo(url: string, secretKey: string) {
       };
       const base = "place_id, reviews, spend_avg, noise_avg, cover_ratio";
       let res = await db.from("place_signals").select(`${base}, verified, weight`);
-      // Sem a migração 0004 a view não tem as colunas de visita confirmada: segue sem elas.
+      // Sem a migração 0006 a view não tem as colunas de visita confirmada: segue sem elas.
       if (res.error?.code === "42703") res = await db.from("place_signals").select(base);
       const rows = check(res) as unknown as Row[];
       return new Map(
@@ -341,7 +341,7 @@ export function createRepo(url: string, secretKey: string) {
       };
       if (r.verified) row.verified = true;
       const res = await db.from("micro_reviews").insert(row);
-      // Sem a migração 0004 não há a coluna "verified": grava a avaliação mesmo assim.
+      // Sem a migração 0006 não há a coluna "verified": grava a avaliação mesmo assim.
       if (res.error && r.verified && res.error.message.includes("verified")) {
         delete row.verified;
         check(await db.from("micro_reviews").insert(row));

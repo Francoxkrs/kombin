@@ -45,7 +45,7 @@ export interface PlaceSignals {
   coverRatio: number | null;
   /** Quantas das avaliações têm visita confirmada (check-in ou "Como chegar" antes). */
   verified?: number;
-  /** Peso somado das avaliações: 1 cada, 2 com visita confirmada. Sem a migração 0004, fica vazio. */
+  /** Peso somado das avaliações: 1 cada, 2 com visita confirmada. Sem a migração 0006, fica vazio. */
   weight?: number;
 }
 

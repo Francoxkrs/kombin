@@ -6,8 +6,9 @@
 alter table micro_reviews add column if not exists verified boolean not null default false;
 
 -- Médias ponderadas: avaliação com visita confirmada vale 2, as outras 1.
--- Colunas novas ficam no fim para o "create or replace" aceitar.
-create or replace view place_signals as
+-- Colunas novas ficam no fim para o "create or replace" aceitar. O "create or replace"
+-- apaga as opções da view, então o security_invoker da 0004_seguranca é repetido aqui.
+create or replace view place_signals with (security_invoker = true) as
 select
   place_id,
   count(*)::int as reviews,
@@ -45,3 +46,5 @@ create index if not exists lead_clicks_device_idx on lead_clicks (device_id, cre
 
 -- Só o servidor (chave secreta) lê e grava.
 alter table search_log enable row level security;
+revoke all on search_log from anon, authenticated;
+revoke all on place_signals from anon, authenticated;

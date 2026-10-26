@@ -43,7 +43,7 @@ export async function getTaste(userId: string | null, places: Map<string, Place>
     const taste = buildTaste(events.searches, events.choices, places);
     return taste.n >= MIN_TASTE ? taste : null;
   } catch (e) {
-    console.warn("gosto não carregado (rodou a migração 0004?)", e);
+    console.warn("gosto não carregado (rodou a migração 0006?)", e);
     return null;
   }
 }
@@ -95,5 +95,5 @@ export async function logSearch(userId: string | null, device: string | null, oc
       quiet: !!prefs.quiet,
       noCover: !!prefs.noCover,
     })
-    .catch((e) => console.warn("busca não registrada (rodou a migração 0004?)", e));
+    .catch((e) => console.warn("busca não registrada (rodou a migração 0006?)", e));
 }
