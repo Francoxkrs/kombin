@@ -214,7 +214,14 @@ export async function photoNames(key: string, placeId: string): Promise<{ name: 
     `/places/${encodeURIComponent(placeId)}`,
     { fieldMask: "photos" },
   );
-  return (d.photos ?? []).map((p) => ({ name: p.name, author: p.authorAttributions?.[0]?.displayName ?? null }));
+  if (d.photos?.length) {
+    return d.photos.map((p) => ({ name: p.name, author: p.authorAttributions?.[0]?.displayName ?? null }));
+  }
+  // Em produção o Place Details só com "photos" voltou vazio para todos os lugares, embora a
+  // busca da importação traga fotos. Tenta de novo com os mesmos campos da busca.
+  console.warn("Google: Place Details sem fotos, tentando com todos os campos", placeId, JSON.stringify(d).slice(0, 200));
+  const full = await placeDetails(key, placeId);
+  return (full.photos ?? []).map((p) => ({ name: p.name, author: null }));
 }
 
 /** Baixa uma foto (Place Photos). */

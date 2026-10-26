@@ -8,7 +8,18 @@ import { placeId } from "@/lib/validation";
 
 /** Nomes das fotos do Google por 1 hora (eles expiram; não vão para o banco). */
 const namesFor = (googlePlaceId: string, key: string) =>
-  unstable_cache(() => photoNames(key, googlePlaceId), ["gphotos", googlePlaceId], { revalidate: 3600 })();
+  unstable_cache(
+    async () => {
+      const names = await photoNames(key, googlePlaceId);
+      // Lista vazia não entra no cache: lança, e a próxima visita pergunta ao Google de novo.
+      if (names.length === 0) throw new NoGooglePhotos();
+      return names;
+    },
+    ["gphotos-v2", googlePlaceId],
+    { revalidate: 3600 },
+  )();
+
+class NoGooglePhotos extends Error {}
 
 /**
  * Foto do Google servida pelo nosso domínio: a chave da API fica no servidor e a
@@ -48,7 +59,10 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/photo/[i
   if (place.status === "rejected") return noPhoto("lugar recusado", id);
 
   try {
-    const names = await namesFor(place.googlePlaceId, key);
+    const names = await namesFor(place.googlePlaceId, key).catch((e) => {
+      if (e instanceof NoGooglePhotos) return [];
+      throw e;
+    });
     const photo = names[index];
     if (!photo) return noPhoto(`Google tem ${names.length} fotos, pediu a ${index}`, id);
     if (!(await allow("google:photo:day", googleDailyLimit()))) return noPhoto("teto diário do Google atingido", id);
