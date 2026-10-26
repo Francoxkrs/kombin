@@ -175,7 +175,7 @@ export async function visionNext(): Promise<
   if (!next) return { ok: true, name: null, remaining: 0 };
   try {
     const key = googleKey();
-    const names = (await photoNames(key, next.googlePlaceId)).slice(0, 3);
+    const names = (await photoNames(key, next.googlePlaceId, next.name)).slice(0, 3);
     const images = (await Promise.all(names.map((n) => photoBytes(key, n.name, 800))))
       .filter((x) => !!x)
       .map((x): VisionImage => ({ mimeType: x.mimeType, base64: Buffer.from(x.bytes).toString("base64") }));

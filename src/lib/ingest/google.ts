@@ -207,22 +207,41 @@ export function placeDetails(key: string, placeId: string): Promise<GPlace> {
   });
 }
 
-/** Nomes das fotos de um lugar (Place Details só com "photos"). */
-export async function photoNames(key: string, placeId: string): Promise<{ name: string; author: string | null }[]> {
-  const d = await call<{ photos?: { name: string; authorAttributions?: { displayName?: string }[] }[] }>(
-    key,
-    `/places/${encodeURIComponent(placeId)}`,
-    { fieldMask: "photos" },
+/**
+ * Nomes das fotos de um lugar. Primeiro o Place Details só com "photos"; se vier vazio
+ * (em produção ele devolve `{}` para todos os lugares, com ou sem os outros campos),
+ * busca o lugar pelo nome no Text Search, que é o mesmo caminho da importação e traz fotos.
+ */
+export async function photoNames(
+  key: string,
+  placeId: string,
+  placeName?: string,
+): Promise<{ name: string; author: string | null }[]> {
+  const d = await call<{ photos?: GPhoto[] }>(key, `/places/${encodeURIComponent(placeId)}`, { fieldMask: "photos" });
+  if (d.photos?.length) return d.photos.map(photoRef);
+  if (!placeName) return [];
+  const hits = await call<{ places?: { id: string; photos?: GPhoto[] }[] }>(key, "/places:searchText", {
+    method: "POST",
+    fieldMask: "places.id,places.photos",
+    body: JSON.stringify({
+      textQuery: `${placeName} em Campo Grande MS`,
+      languageCode: "pt-BR",
+      regionCode: "BR",
+      pageSize: 5,
+      locationRestriction: CAMPO_GRANDE,
+    }),
+  });
+  const hit = hits.places?.find((p) => p.id === placeId);
+  console.warn(
+    "Google: Place Details sem fotos; Text Search",
+    placeId,
+    hit ? `achou ${hit.photos?.length ?? 0} fotos` : `não achou o lugar entre ${hits.places?.length ?? 0} resultados`,
   );
-  if (d.photos?.length) {
-    return d.photos.map((p) => ({ name: p.name, author: p.authorAttributions?.[0]?.displayName ?? null }));
-  }
-  // Em produção o Place Details só com "photos" voltou vazio para todos os lugares, embora a
-  // busca da importação traga fotos. Tenta de novo com os mesmos campos da busca.
-  console.warn("Google: Place Details sem fotos, tentando com todos os campos", placeId, JSON.stringify(d).slice(0, 200));
-  const full = await placeDetails(key, placeId);
-  return (full.photos ?? []).map((p) => ({ name: p.name, author: null }));
+  return (hit?.photos ?? []).map(photoRef);
 }
+
+type GPhoto = { name: string; authorAttributions?: { displayName?: string }[] };
+const photoRef = (p: GPhoto) => ({ name: p.name, author: p.authorAttributions?.[0]?.displayName ?? null });
 
 /** Baixa uma foto (Place Photos). */
 export async function photoBytes(
