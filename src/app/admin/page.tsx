@@ -10,6 +10,7 @@ import type { PlaceStatus } from "@/lib/types";
 import { ESSENTIALS, QUERIES } from "@/lib/ingest/google";
 import { createPlace, removeDemoPlaces, resolveClaim, saveDetails, setStatus } from "./actions";
 import { ImportPanel } from "./ImportPanel";
+import { CoverEditor } from "../painel/PhotoEditors";
 import { PlaceFields } from "./PlaceFields";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 
@@ -193,6 +194,15 @@ async function PlaceList({
             </div>
 
             <details className="mt-3">
+              <summary className="flex h-11 cursor-pointer items-center text-muted">
+                {p.coverUrl ? "Trocar foto de capa" : "Pôr foto de capa"}
+              </summary>
+              <div className="mt-3">
+                <CoverEditor placeId={p.id} current={p.coverUrl} blurhash={p.coverBlurhash} />
+              </div>
+            </details>
+
+            <details>
               <summary className="flex h-11 cursor-pointer items-center text-muted">Editar</summary>
               <form action={saveDetails} className="mt-3 space-y-2">
                 <input type="hidden" name="id" value={p.id} />
