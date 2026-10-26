@@ -4,54 +4,52 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { CATALOG_TAG } from "@/lib/catalog";
-import { CUISINES } from "@/lib/cuisines";
+import { allow, LIMITS } from "@/lib/rate-limit";
 import { getRepo } from "@/lib/repo";
+import { readImageUpload, UploadError } from "@/lib/upload";
+import { claimForm, formObject, ownerForm, placeId as placeIdSchema } from "@/lib/validation";
 import { normalizeWhatsapp } from "@/lib/whatsapp";
 
-const MAX_COVER_BYTES = 4 * 1024 * 1024;
-
 export async function claimPlace(formData: FormData) {
-  const placeId = String(formData.get("placeId"));
-  const user = await requireUser(`/painel/reivindicar/${placeId}`);
-  const contact = String(formData.get("contact") ?? "").trim().slice(0, 80);
-  const message = String(formData.get("message") ?? "").trim().slice(0, 500) || null;
+  const id = placeIdSchema.safeParse(formData.get("placeId"));
+  if (!id.success) return;
+  const user = await requireUser(`/painel/reivindicar/${id.data}`);
+  const form = claimForm.safeParse({ ...formObject(formData), message: formData.get("message") ?? "" });
+  if (!form.success) return;
+  const { placeId, contact, message } = form.data;
   const repo = getRepo();
-  if (!contact || !(await repo.getPlace(placeId))) return;
+  const place = await repo.getPlace(placeId);
+  if (!place || place.status !== "approved") return;
+  if (!(await allow(`claim:user:${user.id}`, LIMITS.claim))) return;
   await repo.createClaim(placeId, user.id, contact, message);
   redirect(`/painel/reivindicar/${placeId}?enviado=1`);
 }
 
-const cleanUrl = (v: FormDataEntryValue | null) => {
-  const s = String(v ?? "").trim();
-  return /^https?:\/\//.test(s) ? s.slice(0, 300) : null;
-};
-
 /** Dados que o dono pode editar. Avaliações e tags da galera ficam fora do alcance dele. */
 export async function saveOwnerDetails(formData: FormData) {
-  const placeId = String(formData.get("placeId"));
   const user = await requireUser("/painel");
+  const form = ownerForm.safeParse(formObject(formData, ["cuisines"]));
+  if (!form.success) throw new Error("Confira o Instagram e o link do cardápio");
+  const { placeId, instagram, menuUrl, cuisines } = form.data;
   const repo = getRepo();
+  // IDOR: o placeId vem do formulário, então a posse é conferida no servidor.
   if (!(await repo.isOwner(user.id, placeId)) && !user.isAdmin) throw new Error("Sem permissão");
-
-  const instagram = String(formData.get("instagram") ?? "").trim().replace(/^@/, "").slice(0, 60);
-  const cuisines = formData
-    .getAll("cuisines")
-    .map(String)
-    .filter((c) => CUISINES.some((x) => x.slug === c));
 
   let coverUrl: string | undefined;
   const cover = formData.get("cover");
   if (cover instanceof File && cover.size > 0) {
-    if (!cover.type.startsWith("image/") || cover.size > MAX_COVER_BYTES) {
-      throw new Error("A foto precisa ser uma imagem de até 4 MB");
+    try {
+      coverUrl = await repo.uploadCover(placeId, await readImageUpload(cover));
+    } catch (e) {
+      if (e instanceof UploadError) throw new Error(e.message);
+      throw e;
     }
-    coverUrl = await repo.uploadCover(placeId, cover);
   }
 
   await repo.updatePlace(placeId, {
     whatsapp: normalizeWhatsapp(formData.get("whatsapp")),
-    instagram: instagram || null,
-    menuUrl: cleanUrl(formData.get("menuUrl")),
+    instagram,
+    menuUrl,
     cuisines,
     ...(coverUrl ? { coverUrl } : {}),
   });

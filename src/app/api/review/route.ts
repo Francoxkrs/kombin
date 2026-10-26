@@ -1,61 +1,67 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
+import type { z } from "zod";
 import { CATALOG_TAG } from "@/lib/catalog";
 import { DEVICE_COOKIE, PENDING_REVIEW_COOKIE, REVIEWED_COOKIE } from "@/lib/device-cookie";
 import { getCurrentUser } from "@/lib/auth";
+import { allow, ipFrom, LIMITS, tooMany } from "@/lib/rate-limit";
 import { getRepo } from "@/lib/repo";
+import { readJson } from "@/lib/request";
 import { savedTag } from "@/lib/saved";
-import type { Noise, SpendBand } from "@/lib/types";
+import { microReviewBody } from "@/lib/validation";
 
 /*
  * Avaliação relâmpago. É uma rota (e não server action) de propósito: gravar
  * cookies numa server action recarrega a página e fecharia a tela de recompensa.
  */
 
-export interface MicroReviewBody {
-  placeId: string;
-  occasion: string | null;
-  spend: SpendBand;
-  cover: boolean;
-  noise: Noise;
-  /** Check-in feito no navegador: só o resultado chega, nunca a localização. */
-  verifiedVisit?: boolean;
-}
+export type MicroReviewBody = z.infer<typeof microReviewBody>;
+
+const COOKIE_OPTS = {
+  maxAge: 60 * 60 * 24 * 365,
+  path: "/",
+  sameSite: "lax" as const,
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+};
 
 /** "Como chegar" conta como visita se foi clicado entre meia hora e três dias antes da avaliação. */
 const DIRECTIONS_MIN_MINUTES = 30;
 const DIRECTIONS_MAX_HOURS = 72;
 
-const COOKIE_OPTS = { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax" as const };
-
 /** Grava a avaliação e devolve quantas este aparelho já fez (para a recompensa). */
 export async function POST(request: NextRequest) {
-  const b = (await request.json().catch(() => null)) as MicroReviewBody | null;
-  const valid =
-    b &&
-    [1, 2, 3, 4].includes(b.spend) &&
-    [1, 2, 3].includes(b.noise) &&
-    typeof b.cover === "boolean" &&
-    typeof b.placeId === "string";
-  if (!valid) return NextResponse.json({ error: "avaliação inválida" }, { status: 400 });
+  const body = await readJson(request, microReviewBody);
+  if (!body.ok) return body.response;
+  const b = body.data;
+
+  const deviceId = request.cookies.get(DEVICE_COOKIE)?.value;
+  // O proxy dá o cookie na primeira página: sem ele é chamada direta, não alguém usando o app.
+  if (!deviceId) return NextResponse.json({ error: "abra o app e tente de novo" }, { status: 400 });
 
   const repo = getRepo();
-  if (!(await repo.getPlace(b.placeId))) {
+  const place = await repo.getPlace(b.placeId);
+  if (!place || place.status !== "approved") {
     return NextResponse.json({ error: "lugar não encontrado" }, { status: 404 });
   }
 
   const user = await getCurrentUser();
+  const ip = ipFrom(request.headers);
+  const allowed =
+    (await allow(`review:ip:${ip}`, LIMITS.reviewIp)) &&
+    (!user || (await allow(`review:user:${user.id}`, LIMITS.reviewUser)));
+  if (!allowed) return tooMany();
+
   const reviewed = (request.cookies.get(REVIEWED_COOKIE)?.value ?? "").split(",").filter(Boolean);
-  // Com conta: uma por pessoa por lugar (a nova substitui). Sem conta: uma por aparelho.
+  // Com conta: uma por pessoa por lugar (a nova substitui). Sem conta: uma por aparelho
+  // por semana, garantida pelo índice único do banco (o cookie é só para não perguntar de novo).
   let verified = false;
   if (user || !reviewed.includes(b.placeId)) {
-    const deviceId = request.cookies.get(DEVICE_COOKIE)?.value ?? "sem-cookie";
     verified =
       b.verifiedVisit === true ||
-      (deviceId !== "sem-cookie" &&
-        (await repo
-          .clickedDirections(b.placeId, deviceId, DIRECTIONS_MIN_MINUTES, DIRECTIONS_MAX_HOURS)
-          .catch(() => false)));
+      (await repo
+        .clickedDirections(b.placeId, deviceId, DIRECTIONS_MIN_MINUTES, DIRECTIONS_MAX_HOURS)
+        .catch(() => false));
     await repo.addMicroReview({
       userId: user?.id ?? null,
       placeId: b.placeId,

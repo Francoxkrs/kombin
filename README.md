@@ -107,6 +107,15 @@ Uma importação completa gasta 16 buscas. As fotos passam pelo nosso servidor (
 - Nome e endereço também são guardados para o app funcionar. É uma área cinzenta dos termos; para ficar 100% dentro, troque por dados do Foursquare Open Source Places ou do OpenStreetMap.
 - Não use dados do Google em mapa que não seja do Google. O "Como chegar" abre o Google Maps.
 
+## Segurança
+
+- **Quem grava no banco é só o servidor**, com a chave secreta, depois de validar o pedido (`src/lib/validation.ts`, zod) e conferir o limite de requisições (`src/lib/rate-limit.ts`). A chave pública vai para o navegador só para o login; a migração `0004_seguranca.sql` liga RLS em todas as tabelas, libera apenas leitura do que é público ou da própria pessoa e revoga qualquer escrita pela chave pública.
+- **Rode a 0004** no SQL Editor depois da 0003. Sem ela o app funciona, mas sem limite de requisições (aparece um aviso no log da Vercel).
+- **Conta do Google Cloud**: fotos e horários são cacheados no servidor e têm teto diário (`GOOGLE_DAILY_LIMIT`, padrão 500 chamadas). Mesmo assim, coloque cota diária na Places API e alerta de orçamento no Google Cloud: é o único freio que vale fora do código.
+- **Admin**: com "Confirm email" desligado, qualquer um pode criar conta com um e-mail que está em `ADMIN_EMAILS` e ainda não tem conta. Em produção prefira `update profiles set role = 'admin' where id = (select id from auth.users where email = 'voce@exemplo.com');` e deixe `ADMIN_EMAILS` vazio, ou mantenha a confirmação de e-mail ligada.
+- **Supabase Auth** (painel > Authentication): senha mínima de 8 caracteres (igual ao app) e limites de login em Rate Limits. Para bloquear robôs no cadastro, dá para ligar CAPTCHA (Cloudflare Turnstile, grátis) em Attack Protection.
+- Fotos enviadas pelo painel: só JPG, PNG ou WebP de até 2 MB, conferidos pelos bytes do arquivo, e os metadados (GPS, aparelho) são removidos no servidor antes de ir para o Storage.
+
 ## Deploy grátis
 
 Suba o repositório no GitHub e importe na [Vercel](https://vercel.com) (plano Hobby). Cadastre as mesmas variáveis do `.env.local` no painel da Vercel. O plano Hobby é para uso não comercial: quando começarem a cobrar restaurantes, migrem para o Pro ou para outro provedor.

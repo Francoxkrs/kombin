@@ -226,12 +226,12 @@ export function createRepo(url: string, secretKey: string) {
       );
     },
 
-    async uploadCover(placeId: string, file: File): Promise<string> {
-      const ext = (file.type.split("/")[1] ?? "jpg").replace("jpeg", "jpg");
-      const path = `${placeId}/${Date.now()}.${ext}`;
+    /** Foto já validada e sem metadados (veja src/lib/upload.ts). */
+    async uploadCover(placeId: string, image: { bytes: Uint8Array; type: string; ext: string }): Promise<string> {
+      const path = `${placeId}/${Date.now()}.${image.ext}`;
       const { error } = await db.storage
         .from("covers")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, image.bytes, { contentType: image.type, upsert: false });
       if (error) throw new Error(`Upload: ${error.message}`);
       return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
     },
@@ -340,12 +340,15 @@ export function createRepo(url: string, secretKey: string) {
         noise: r.noise,
       };
       if (r.verified) row.verified = true;
-      const res = await db.from("micro_reviews").insert(row);
+      let res = await db.from("micro_reviews").insert(row);
       // Sem a migração 0006 não há a coluna "verified": grava a avaliação mesmo assim.
       if (res.error && r.verified && res.error.message.includes("verified")) {
         delete row.verified;
-        check(await db.from("micro_reviews").insert(row));
-      } else check(res);
+        res = await db.from("micro_reviews").insert(row);
+      }
+      // 23505: este aparelho já avaliou o lugar nesta semana (ou dois envios ao mesmo tempo). Vale a primeira.
+      if (res.error?.code === "23505") return;
+      check(res);
     },
 
     /** Este aparelho clicou em "Como chegar" deste lugar entre `minMinutes` e `maxHours` atrás? */

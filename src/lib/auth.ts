@@ -80,7 +80,4 @@ export async function requireAdmin(): Promise<CurrentUser> {
   return user;
 }
 
-/** Só aceita caminhos internos no ?next= (evita redirecionar para outro site). */
-export function safeNext(next: string | null | undefined, fallback = "/"): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback;
-}
+export { safeNext } from "./safe-next";
