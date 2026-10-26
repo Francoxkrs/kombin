@@ -19,11 +19,17 @@ const namesFor = (googlePlaceId: string, key: string) =>
  * variação seria uma chamada paga), qualquer URL fora do formato exato é
  * redirecionada para a forma canônica, e há teto por IP e teto diário global.
  */
+/** 404 sem foto, com o motivo no log da Vercel e no cabeçalho X-Kombin-Photo (para achar a causa sem adivinhar). */
+function noPhoto(reason: string, id?: string) {
+  console.warn(`foto: sem foto (${reason})`, id ?? "");
+  return new NextResponse(null, { status: 404, headers: { "X-Kombin-Photo": reason, "Cache-Control": "no-store" } });
+}
+
 export async function GET(request: NextRequest, ctx: RouteContext<"/api/photo/[id]">) {
   const key = process.env.GOOGLE_MAPS_API_KEY;
-  if (!key) return new NextResponse(null, { status: 404 });
+  if (!key) return noPhoto("sem GOOGLE_MAPS_API_KEY neste deploy");
   const { id } = await ctx.params;
-  if (!placeId.safeParse(id).success) return new NextResponse(null, { status: 404 });
+  if (!placeId.safeParse(id).success) return noPhoto("id inválido");
 
   const sp = request.nextUrl.searchParams;
   const index = Math.min(4, Math.max(0, Math.trunc(Number(sp.get("i"))) || 0));
@@ -37,15 +43,17 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/photo/[i
 
   if (!(await allow(`google:ip:${ipFrom(request.headers)}`, LIMITS.googleIp))) return tooMany();
   const place = (await getCatalog()).byId.get(id) ?? (await getRepo().getPlace(id));
-  if (!place?.googlePlaceId || place.status === "rejected") return new NextResponse(null, { status: 404 });
+  if (!place) return noPhoto("lugar não encontrado", id);
+  if (!place.googlePlaceId) return noPhoto("lugar sem google_place_id", id);
+  if (place.status === "rejected") return noPhoto("lugar recusado", id);
 
   try {
     const names = await namesFor(place.googlePlaceId, key);
     const photo = names[index];
-    if (!photo) return new NextResponse(null, { status: 404 });
-    if (!(await allow("google:photo:day", googleDailyLimit()))) return new NextResponse(null, { status: 404 });
+    if (!photo) return noPhoto(`Google tem ${names.length} fotos, pediu a ${index}`, id);
+    if (!(await allow("google:photo:day", googleDailyLimit()))) return noPhoto("teto diário do Google atingido", id);
     const img = await photoBytes(key, photo.name, small ? 480 : 1000);
-    if (!img) return new NextResponse(null, { status: 404 });
+    if (!img) return noPhoto("Google recusou o download da foto (veja o log acima)", id);
     return new NextResponse(img.bytes, {
       headers: {
         "Content-Type": img.mimeType,

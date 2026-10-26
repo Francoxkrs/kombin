@@ -224,7 +224,11 @@ export async function photoBytes(
   maxWidth = 900,
 ): Promise<{ bytes: ArrayBuffer; mimeType: string } | null> {
   const res = await fetch(`${API}/${photoName}/media?maxWidthPx=${maxWidth}&key=${key}`, { cache: "no-store" });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`Google Place Photos ${res.status}:`, body.slice(0, 300));
+    return null;
+  }
   return { bytes: await res.arrayBuffer(), mimeType: res.headers.get("content-type") ?? "image/jpeg" };
 }
 
