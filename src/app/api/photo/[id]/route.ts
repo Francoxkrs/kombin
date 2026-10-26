@@ -7,15 +7,15 @@ import { getRepo } from "@/lib/repo";
 import { placeId } from "@/lib/validation";
 
 /** Nomes das fotos do Google por 1 hora (eles expiram; não vão para o banco). */
-const namesFor = (googlePlaceId: string, key: string) =>
+const namesFor = (googlePlaceId: string, name: string, key: string) =>
   unstable_cache(
     async () => {
-      const names = await photoNames(key, googlePlaceId);
+      const names = await photoNames(key, googlePlaceId, name);
       // Lista vazia não entra no cache: lança, e a próxima visita pergunta ao Google de novo.
       if (names.length === 0) throw new NoGooglePhotos();
       return names;
     },
-    ["gphotos-v2", googlePlaceId],
+    ["gphotos-v3", googlePlaceId],
     { revalidate: 3600 },
   )();
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/photo/[i
   if (place.status === "rejected") return noPhoto("lugar recusado", id);
 
   try {
-    const names = await namesFor(place.googlePlaceId, key).catch((e) => {
+    const names = await namesFor(place.googlePlaceId, place.name, key).catch((e) => {
       if (e instanceof NoGooglePhotos) return [];
       throw e;
     });
