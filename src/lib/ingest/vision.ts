@@ -7,7 +7,7 @@
  *    Atenção: no plano gratuito o Google pode usar os dados enviados para treinar modelos.
  *  - anthropic: Claude Haiku, pago por uso (centavos para algumas centenas de lugares). ANTHROPIC_API_KEY.
  */
-import { OCCASIONS } from "../../src/lib/occasions";
+import { OCCASIONS } from "../occasions";
 
 export interface VibeVerdict {
   aesthetic: number;

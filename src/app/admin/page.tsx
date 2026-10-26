@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { Header } from "@/components/Header";
+import { Page } from "@/components/ui/Page";
+import { TopBar } from "@/components/ui/TopBar";
 import { requireAdmin } from "@/lib/auth";
 import { cuisineLabel } from "@/lib/cuisines";
 import { OCCASIONS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import type { PlaceStatus } from "@/lib/types";
+import { QUERIES } from "@/lib/ingest/google";
 import { createPlace, resolveClaim, saveDetails, setStatus } from "./actions";
+import { ImportPanel } from "./ImportPanel";
 import { PlaceFields } from "./PlaceFields";
 
 export const metadata = { title: "Admin · Kombin", robots: { index: false } };
+// A importação e o vibe-check rodam como server actions desta página.
+export const maxDuration = 60;
 
 const TABS = [
+  { key: "importar", label: "Importar do Google" },
   { key: "pending", label: "Para revisar" },
   { key: "approved", label: "Aprovados" },
   { key: "rejected", label: "Rejeitados" },
@@ -23,34 +29,35 @@ type Tab = (typeof TABS)[number]["key"];
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   await requireAdmin();
   const sp = await searchParams;
-  const tab: Tab = TABS.find((t) => t.key === sp.s)?.key ?? "pending";
+  const tab: Tab = TABS.find((t) => t.key === sp.s)?.key ?? "importar";
   const repo = getRepo();
   const leads = await repo.leadCounts(30);
   const totalWhats = leads.reduce((s, l) => s + l.whatsapp, 0);
   const totalDir = leads.reduce((s, l) => s + l.directions, 0);
 
   return (
-    <>
-      <Header back={{ href: "/perfil", label: "Perfil" }} />
+    <Page>
+      <TopBar back={{ href: "/perfil", label: "Você" }} />
       <main className="px-5 pt-2 pb-12">
-        <h1 className="text-2xl font-bold">Admin</h1>
+        <h1 className="display text-[2.4rem]">Admin</h1>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-2xl bg-surface p-4">
-            <p className="text-3xl font-bold">{totalWhats}</p>
+          <div className="rounded-[1.3rem] bg-soft p-4">
+            <p className="display text-[2rem]">{totalWhats}</p>
             <p className="text-xs text-muted">cliques em WhatsApp (30 dias)</p>
           </div>
-          <div className="rounded-2xl bg-surface p-4">
-            <p className="text-3xl font-bold">{totalDir}</p>
+          <div className="rounded-[1.3rem] bg-soft p-4">
+            <p className="display text-[2rem]">{totalDir}</p>
             <p className="text-xs text-muted">cliques em Como chegar (30 dias)</p>
           </div>
         </div>
 
-        <nav className="-mx-5 mt-6 flex gap-2 overflow-x-auto px-5">
+        <nav className="no-scrollbar -mx-5 mt-6 flex gap-2 overflow-x-auto px-5">
           {TABS.map((t) => (
             <Link
               key={t.key}
               href={`/admin?s=${t.key}`}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${t.key === tab ? "bg-foreground text-background" : "bg-surface"}`}
+              replace
+              className={`press shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${t.key === tab ? "border-foreground bg-foreground text-white" : "border-line bg-white"}`}
             >
               {t.label}
             </Link>
@@ -58,6 +65,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </nav>
 
         <div className="mt-5">
+          {tab === "importar" && <Import />}
           {tab === "new" && <NewPlace />}
           {tab === "claims" && <Claims />}
           {(tab === "pending" || tab === "approved" || tab === "rejected") && (
@@ -65,19 +73,31 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           )}
         </div>
       </main>
-    </>
+    </Page>
+  );
+}
+
+async function Import() {
+  const queue = (await getRepo().placesWithoutVision()).length;
+  return (
+    <ImportPanel
+      queries={QUERIES.map((q) => q.label)}
+      hasGoogleKey={!!process.env.GOOGLE_MAPS_API_KEY}
+      hasVision={!!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)}
+      visionQueue={queue}
+    />
   );
 }
 
 function NewPlace() {
   return (
-    <form action={createPlace} className="space-y-3 rounded-2xl bg-surface p-4">
+    <form action={createPlace} className="space-y-3 rounded-[1.5rem] border border-line p-4">
       <p className="font-semibold">Cadastrar lugar à mão</p>
       <p className="text-sm text-muted">
         Entra direto como aprovado. Dê nota de vibe só para as ocasiões em que ele deve aparecer.
       </p>
       <PlaceFields />
-      <button className="w-full rounded-lg bg-foreground py-2.5 font-semibold text-background">Cadastrar</button>
+      <button className="press w-full rounded-xl bg-foreground py-3 font-bold text-white">Cadastrar</button>
     </form>
   );
 }
@@ -88,7 +108,7 @@ async function Claims() {
   return (
     <ul className="space-y-3">
       {claims.map((c) => (
-        <li key={c.id} className="rounded-2xl bg-surface p-4 text-sm">
+        <li key={c.id} className="rounded-[1.5rem] border border-line p-4 text-sm">
           <p className="text-base font-bold">{c.placeName}</p>
           <p>
             {c.userName ?? "Sem nome"} · <b>{c.contact}</b>
@@ -103,7 +123,7 @@ async function Claims() {
               <form key={b.v} action={resolveClaim}>
                 <input type="hidden" name="id" value={c.id} />
                 <input type="hidden" name="approve" value={b.v} />
-                <button className="rounded-lg border border-line px-3 py-1.5">{b.label}</button>
+                <button className="press rounded-xl border border-line px-3 py-2 font-semibold">{b.label}</button>
               </form>
             ))}
           </div>
@@ -131,7 +151,7 @@ async function PlaceList({
         const l = leads.get(p.id);
         const s = signals.get(p.id);
         return (
-          <li key={p.id} className="rounded-2xl bg-surface p-4 text-sm">
+          <li key={p.id} className="rounded-[1.5rem] border border-line p-4 text-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-base font-bold">{p.name}</p>
@@ -148,7 +168,7 @@ async function PlaceList({
             {p.aiSummary && <p className="mt-2 italic">“{p.aiSummary}”</p>}
             <div className="mt-2 flex flex-wrap gap-1">
               {OCCASIONS.map((o) => (
-                <span key={o.slug} className="rounded-full bg-background px-2 py-0.5 text-xs">
+                <span key={o.slug} className="rounded-full bg-soft px-2 py-0.5 text-xs">
                   {o.slug}: <b>{p.vibe[o.slug]?.toFixed(1) ?? "–"}</b>
                 </span>
               ))}
@@ -159,7 +179,7 @@ async function PlaceList({
               <form action={saveDetails} className="mt-3 space-y-2">
                 <input type="hidden" name="id" value={p.id} />
                 <PlaceFields place={p} />
-                <button className="w-full rounded-lg bg-foreground py-2 font-semibold text-background">Salvar</button>
+                <button className="press w-full rounded-xl bg-foreground py-2.5 font-bold text-white">Salvar</button>
               </form>
             </details>
 
@@ -168,7 +188,7 @@ async function PlaceList({
                 <form key={st} action={setStatus}>
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="status" value={st} />
-                  <button className="rounded-lg border border-line px-3 py-1.5">
+                  <button className="press rounded-xl border border-line px-3 py-2 font-semibold">
                     {st === "approved" ? "Aprovar" : st === "rejected" ? "Rejeitar" : "Voltar p/ revisão"}
                   </button>
                 </form>

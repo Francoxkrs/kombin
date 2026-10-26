@@ -1,4 +1,4 @@
-import { Header } from "@/components/Header";
+import { TopBar } from "@/components/ui/TopBar";
 import { PlaceRow } from "@/components/PlaceRow";
 import { requireUser } from "@/lib/auth";
 import { CUISINES } from "@/lib/cuisines";
@@ -8,7 +8,7 @@ import { saveOwnerDetails } from "./actions";
 
 export const metadata = { title: "Painel do restaurante · Kombin" };
 
-const field = "w-full rounded-xl border border-line bg-background px-3 py-2.5";
+const field = "w-full rounded-xl border border-line bg-soft px-3 py-2.5";
 
 export default async function OwnerPanel({ searchParams }: PageProps<"/painel">) {
   const user = await requireUser("/painel");
@@ -23,7 +23,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
       : [];
     return (
       <>
-        <Header back={{ href: "/perfil", label: "Perfil" }} />
+        <TopBar back={{ href: "/perfil", label: "Você" }} />
         <main className="flex-1 px-5 pt-4 pb-12">
           <h1 className="text-3xl leading-tight font-bold tracking-tight">Seu restaurante no Kombin</h1>
           <p className="mt-2 text-muted">
@@ -32,7 +32,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
           </p>
           <form className="mt-6 flex gap-2">
             <input name="q" defaultValue={q} placeholder="Nome do restaurante" className={field} />
-            <button className="rounded-xl bg-foreground px-4 font-semibold text-background">Buscar</button>
+            <button className="rounded-xl bg-foreground px-4 font-semibold text-white">Buscar</button>
           </form>
           <ul className="mt-4 space-y-2">
             {results.map((p) => (
@@ -68,7 +68,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
 
   return (
     <>
-      <Header back={{ href: "/perfil", label: "Perfil" }} />
+      <TopBar back={{ href: "/perfil", label: "Você" }} />
       <main className="flex-1 space-y-10 px-5 pt-4 pb-12">
         <h1 className="text-3xl font-bold tracking-tight">Painel do restaurante</h1>
         {owned.map((place, i) => {
@@ -87,7 +87,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                   { n: s.directions, label: "pediram rota" },
                   { n: s.saves, label: "salvaram em “Quero ir” / “Já fui”" },
                 ].map((k) => (
-                  <div key={k.label} className="rounded-2xl bg-surface p-4">
+                  <div key={k.label} className="rounded-2xl bg-soft p-4">
                     <p className="text-3xl font-bold">{k.n}</p>
                     <p className="text-xs text-muted">{k.label}</p>
                   </div>
@@ -95,7 +95,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
               </div>
 
               {s.impressions.length > 0 && (
-                <div className="rounded-2xl bg-surface p-4">
+                <div className="rounded-2xl bg-soft p-4">
                   <p className="mb-3 text-sm font-semibold">Onde você aparece</p>
                   <ul className="space-y-2">
                     {s.impressions.map((imp) => {
@@ -106,7 +106,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                             <span>{occ?.name ?? imp.occasion}</span>
                             <b>{imp.count}</b>
                           </div>
-                          <div className="mt-1 h-1.5 rounded-full bg-background">
+                          <div className="mt-1 h-1.5 rounded-full bg-soft">
                             <div
                               className="h-full rounded-full"
                               style={{
@@ -135,7 +135,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                 </a>
               )}
 
-              <details className="rounded-2xl bg-surface p-4">
+              <details className="rounded-2xl bg-soft p-4">
                 <summary className="cursor-pointer font-semibold">Editar informações</summary>
                 <form action={saveOwnerDetails} className="mt-4 space-y-3 text-sm">
                   <input type="hidden" name="placeId" value={place.id} />
@@ -166,7 +166,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                     Foto de capa (até 4 MB)
                     <input name="cover" type="file" accept="image/*" className="mt-1 block w-full text-sm" />
                   </label>
-                  <button className="w-full rounded-xl bg-foreground py-3 font-semibold text-background">Salvar</button>
+                  <button className="w-full rounded-xl bg-foreground py-3 font-semibold text-white">Salvar</button>
                   <p className="text-xs text-muted">
                     Avaliações, gasto médio, couvert e barulho vêm dos clientes e não podem ser editados aqui.
                   </p>

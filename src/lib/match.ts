@@ -9,8 +9,10 @@
  *
  * Lugar sem nenhum dado fica em 50%. Cada micro-review aumenta a confiança.
  */
-import type { Occasion } from "./occasions";
-import { SPEND_LABELS } from "./occasions";
+import { cuisineLabel } from "./cuisines";
+import type { Occasion, Party } from "./occasions";
+import { SPEND_LABELS, vibeFor } from "./occasions";
+import { getTag } from "./tags";
 import type { Place, PlaceSignals, SpendBand } from "./types";
 
 export interface MatchPrefs {
@@ -19,18 +21,29 @@ export interface MatchPrefs {
   budget?: SpendBand;
   noCover?: boolean;
   origin?: { lat: number; lng: number };
+  /** Quantas pessoas. "6+" pesa a favor de quem é bom pra grupos. */
+  party?: Party;
+  /** Bairro (filtro duro). */
+  neighborhood?: string;
+  /** Etiquetas obrigatórias (filtro duro): música ao vivo, área externa... */
+  tags?: string[];
 }
 
 export interface MatchResult {
   place: Place;
   compat: number;
+  /** Até 3 motivos, os mais fortes. */
   reasons: string[];
+  /** Tudo que bate: filtros escolhidos + motivos (a lista "Por que combina com você?"). */
+  checks: string[];
+  /** Quantos filtros escolhidos o lugar atende (todos, já que os outros saem da lista). */
+  filtersMatched: number;
   warning: string | null;
   spend: number | null;
   reviews: number;
 }
 
-type CriterionKey = "vibe" | "noise" | "cover" | "price" | "distance";
+type CriterionKey = "vibe" | "noise" | "cover" | "price" | "distance" | "tags" | "party";
 
 interface Criterion {
   key: CriterionKey;
@@ -91,18 +104,25 @@ export function computeMatch(
 ): MatchResult | null {
   if (place.status !== "approved") return null;
   if (prefs.cuisine && !place.cuisines.includes(prefs.cuisine)) return null;
+  if (prefs.neighborhood && place.neighborhood !== prefs.neighborhood) return null;
+  if (prefs.tags?.some((t) => !place.tags.includes(t))) return null;
   const w = occasion.weights;
   const criteria: Criterion[] = [];
+  const filterChecks: string[] = [];
+  if (prefs.cuisine) filterChecks.push(cuisineLabel(prefs.cuisine));
+  if (prefs.neighborhood) filterChecks.push(prefs.neighborhood);
+  for (const t of prefs.tags ?? []) filterChecks.push(getTag(t)?.label ?? t);
 
   // Sem nota de vibe para a ocasião, o lugar não foi avaliado para ela: fica de fora.
-  const vibe = place.vibe[occasion.slug];
+  const vibe = vibeFor(place.vibe, occasion);
   if (vibe == null || vibe < MIN_VIBE) return null;
   criteria.push({
     key: "vibe",
     w: w.vibe,
-    fit: clamp01(vibe / 10),
+    // 9 ou mais já é encaixe perfeito; 3 ou menos, nenhum.
+    fit: clamp01((vibe - 3) / 6),
     conf: VIBE_CONF,
-    good: `Clima nota ${String(Math.round(vibe * 10) / 10).replace(".", ",")}/10 pra essa ocasião`,
+    good: vibe >= 9 ? "Clima perfeito pra ocasião" : vibe >= 8 ? "Clima ótimo pra ocasião" : "Bom clima pra ocasião",
     bad: "O clima não é o forte pra essa ocasião",
   });
 
@@ -136,8 +156,8 @@ export function computeMatch(
       w: Math.max(w.cover?.w ?? 0, prefs.noCover ? 3 : 0),
       fit: wantCover ? p : 1 - p,
       conf: cover.conf,
-      good: wantCover ? "Costuma ter música ao vivo" : "Sem couvert",
-      bad: wantCover ? "Raramente tem música ao vivo" : "Costuma cobrar couvert",
+      good: wantCover ? "Tem couvert artístico" : "Sem couvert",
+      bad: wantCover ? "Raramente tem som ao vivo" : "Costuma cobrar couvert",
     });
   }
 
@@ -152,6 +172,33 @@ export function computeMatch(
       conf: spend.conf,
       good: `Cabe no orçamento (${SPEND_LABELS[prefs.budget]})`,
       bad: "Pode passar do orçamento",
+    });
+  }
+
+  // Etiquetas que a ocasião valoriza (ex.: aniversário quer "bom pra grupos").
+  const tagChecks: string[] = [];
+  if (occasion.wantTags.length > 0 && place.tags.length > 0) {
+    const hits = occasion.wantTags.filter((t) => place.tags.includes(t)).map((t) => getTag(t)!.label);
+    criteria.push({
+      key: "tags",
+      w: 2,
+      fit: hits.length === 0 ? 0.3 : Math.min(1, 0.55 + 0.25 * hits.length),
+      conf: 0.8,
+      good: hits[0] ?? "",
+      bad: "Falta estrutura típica dessa ocasião",
+    });
+    tagChecks.push(...hits.slice(1));
+  }
+
+  if (prefs.party === "6+") {
+    const groups = place.tags.includes("grupos");
+    criteria.push({
+      key: "party",
+      w: 1.5,
+      fit: groups ? 1 : 0.3,
+      conf: place.tags.length > 0 ? 0.7 : 0,
+      good: "Mesa pra muita gente",
+      bad: "Pode ser apertado pra grupo grande",
     });
   }
 
@@ -172,11 +219,12 @@ export function computeMatch(
     (criteria.reduce((s, c) => s + c.w * c.conf * c.fit, 0) + SHRINK * 0.5) / (evidence + SHRINK);
 
   const known = criteria.filter((c) => c.conf >= MIN_CONF);
-  const reasons = known
+  const positive = known
     .filter((c) => c.fit >= 0.7)
     .sort((a, b) => b.w * b.fit * b.conf - a.w * a.fit * a.conf)
-    .slice(0, 3)
     .map((c) => c.good);
+  const reasons = positive.slice(0, 3);
+  const checks = [...new Set([...filterChecks, ...positive, ...tagChecks])].slice(0, 6);
   const worst = known
     .filter((c) => c.fit <= 0.35)
     .sort((a, b) => b.w * (1 - b.fit) - a.w * (1 - a.fit))[0];
@@ -185,6 +233,8 @@ export function computeMatch(
     place,
     compat: Math.min(99, Math.max(0, Math.round(score * 100))),
     reasons,
+    checks,
+    filtersMatched: filterChecks.length + (prefs.budget ? 1 : 0) + (prefs.noCover ? 1 : 0) + (prefs.party ? 1 : 0),
     warning: worst?.bad ?? null,
     spend: spend.value,
     reviews: signals.reviews,

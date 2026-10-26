@@ -29,6 +29,12 @@ export interface Place {
   /** Nota de vibe por ocasião (0-10), vinda do vibe-check com IA de visão ou do admin. */
   vibe: Record<string, number>;
   aiSummary: string | null;
+  /** Modelo que fez o vibe-check (null = só regras a partir dos dados do Google ou do admin). */
+  aiModel: string | null;
+  /** Etiquetas (slugs de src/lib/tags.ts): música ao vivo, bom pra grupos... */
+  tags: string[];
+  /** Destaque pago: aparece marcado no Descobrir, sem furar os filtros. */
+  featured: boolean;
 }
 
 /** Agregado das micro-reviews de um lugar. */

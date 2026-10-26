@@ -13,12 +13,19 @@ const base = {
   menuUrl: null,
   status: "approved" as const,
   aiSummary: null,
+  aiModel: null,
+  featured: false,
 };
+
+/** Fotos de banco de imagens (Unsplash) só para os lugares fictícios. */
+const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=70`;
 
 export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-adega",
+    coverUrl: unsplash("photo-1517248135467-4c7edcad34c4"),
+    tags: ["vinhos", "reserva", "drinks"],
     cuisines: ["italiana"],
     name: "Adega Lume",
     category: "Bistrô e vinhos",
@@ -34,6 +41,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-varanda",
+    coverUrl: unsplash("photo-1514933651103-005eec06c04b"),
+    tags: ["musica-ao-vivo", "chopp", "grupos", "area-externa"],
     cuisines: ["petiscos"],
     name: "Varanda do Samba",
     category: "Bar e petiscos",
@@ -49,6 +58,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-omakase",
+    coverUrl: unsplash("photo-1579871494447-9811cf80d66c"),
+    tags: ["reserva", "drinks"],
     cuisines: ["japonesa"],
     name: "Kaze Omakase",
     category: "Japonesa",
@@ -64,6 +75,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-quintal",
+    coverUrl: unsplash("photo-1544025162-d76694265947"),
+    tags: ["criancas", "grupos", "area-externa", "estacionamento"],
     cuisines: ["regional", "carnes"],
     name: "Quintal Pantaneiro",
     category: "Regional",
@@ -79,6 +92,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-chopperia",
+    coverUrl: unsplash("photo-1555396273-367ea4eb4db5"),
+    tags: ["chopp", "grupos", "drinks"],
     cuisines: ["petiscos"],
     name: "Chopperia Afonso Pena",
     category: "Choperia",
@@ -94,6 +109,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-grao",
+    coverUrl: unsplash("photo-1554118811-1e0d58224f24"),
+    tags: ["cafe", "sobremesa", "vegetariano"],
     cuisines: ["cafe"],
     name: "Grão & Página",
     category: "Cafeteria",
@@ -109,6 +126,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-trattoria",
+    coverUrl: unsplash("photo-1621996346565-e3dbc646d9a9"),
+    tags: ["vinhos", "criancas", "reserva", "grupos"],
     cuisines: ["italiana", "pizza"],
     name: "Trattoria Nonna Ida",
     category: "Italiana",
@@ -124,6 +143,9 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-rooftop",
+    coverUrl: unsplash("photo-1470337458703-46ad1756a187"),
+    tags: ["drinks", "area-externa", "reserva", "grupos"],
+    featured: true,
     cuisines: ["petiscos"],
     name: "Rooftop 360",
     category: "Drinks",
@@ -139,6 +161,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-burger",
+    coverUrl: unsplash("photo-1568901346375-23c9450c58cd"),
+    tags: ["criancas", "chopp"],
     cuisines: ["hamburguer"],
     name: "Brasa Burger",
     category: "Hambúrguer",
@@ -154,6 +178,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-boteco",
+    coverUrl: unsplash("photo-1559339352-11d035aa65de"),
+    tags: ["musica-ao-vivo", "chopp", "area-externa"],
     cuisines: ["petiscos"],
     name: "Boteco da Esquina",
     category: "Boteco",
@@ -169,6 +195,9 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-forno",
+    coverUrl: unsplash("photo-1513104890138-7c749659a591"),
+    tags: ["grupos", "criancas", "reserva"],
+    featured: true,
     cuisines: ["pizza"],
     name: "Forno da Vila",
     category: "Pizzaria",
@@ -184,6 +213,8 @@ export const DEMO_PLACES: Place[] = [
   {
     ...base,
     id: "demo-sushi",
+    coverUrl: unsplash("photo-1553621042-f6e147245754"),
+    tags: ["grupos", "reserva"],
     cuisines: ["japonesa"],
     name: "Sushi Rio Negro",
     category: "Rodízio japonês",

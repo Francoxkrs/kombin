@@ -1,7 +1,10 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
+import { CATALOG_TAG } from "@/lib/catalog";
 import { DEVICE_COOKIE, PENDING_REVIEW_COOKIE, REVIEWED_COOKIE } from "@/lib/device-cookie";
 import { getCurrentUser } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
+import { savedTag } from "@/lib/saved";
 import type { Noise, SpendBand } from "@/lib/types";
 
 /*
@@ -50,7 +53,12 @@ export async function POST(request: NextRequest) {
     });
     if (!reviewed.includes(b.placeId)) reviewed.push(b.placeId);
   }
-  if (user) await repo.setSaved(user.id, b.placeId, "been", true);
+  if (user) {
+    await repo.setSaved(user.id, b.placeId, "been", true);
+    revalidateTag(savedTag(user.id), { expire: 0 });
+  }
+  // As médias da galera entram no índice; a próxima visita já vê (sem esperar o cache vencer).
+  revalidateTag(CATALOG_TAG, "max");
 
   const total = user ? await repo.countUserReviews(user.id) : reviewed.length;
   const res = NextResponse.json({ total, loggedIn: !!user });

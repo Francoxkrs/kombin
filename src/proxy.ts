@@ -6,7 +6,8 @@ import { supabasePublicKey, supabaseUrl } from "@/lib/supabase/env";
 /**
  * Roda antes de cada página:
  *  1. Dá a cada aparelho um id anônimo (votos e avaliações sem login).
- *  2. Renova a sessão do Supabase Auth, para as páginas lerem o login certo.
+ *  2. Renova a sessão do Supabase Auth, só se houver cookie de sessão (visitante
+ *     sem login não paga nenhuma ida ao Supabase).
  */
 export async function proxy(request: NextRequest) {
   let deviceId = request.cookies.get(DEVICE_COOKIE)?.value;
@@ -17,6 +18,8 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
+  const hasSession = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  if (hasSession) {
   const supabase = createServerClient(
     supabaseUrl(),
     supabasePublicKey(),
@@ -31,8 +34,9 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  // Não coloque código entre o createServerClient e o getUser: é aqui que a sessão é renovada.
-  await supabase.auth.getUser();
+  // Não coloque código entre o createServerClient e o getClaims: é aqui que a sessão é renovada.
+  await supabase.auth.getClaims();
+  }
 
   if (newDevice) {
     response.cookies.set(DEVICE_COOKIE, deviceId, {
