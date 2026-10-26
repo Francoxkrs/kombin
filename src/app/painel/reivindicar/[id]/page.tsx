@@ -6,6 +6,7 @@ import { PlaceRow } from "@/components/PlaceRow";
 import { requireUser } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
 import { claimPlace } from "../../actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Reivindicar restaurante · Kombin" };
 
@@ -51,7 +52,7 @@ export default async function ClaimPage({ params, searchParams }: PageProps<"/pa
                 className={`${TEXTAREA} mt-2`}
               />
             </label>
-            <button className={`${BTN_IPE} w-full`}>Pedir acesso</button>
+            <SubmitButton className={`${BTN_IPE} w-full`}>Pedir acesso</SubmitButton>
           </form>
         )}
       </main>

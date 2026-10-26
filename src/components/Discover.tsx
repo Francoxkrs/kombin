@@ -10,6 +10,7 @@ import { Wordmark } from "./ui/Logo";
 import { Photo } from "./ui/Photo";
 import { SaveButton } from "./ui/SaveButton";
 import { BTN_IPE, BTN_LIGHT, btn } from "./ui/styles";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export interface Slate {
   slug: string;
@@ -114,7 +115,7 @@ function EndScreen({ slate, occasion, isAdmin }: { slate: Slate; occasion: Occas
           {top.map((p) => (
             <input key={p.id} type="hidden" name="placeId" value={p.id} />
           ))}
-          <button className={`${BTN_IPE} w-full`}>{occasion.decideLabel}</button>
+          <SubmitButton className={`${BTN_IPE} w-full`}>{occasion.decideLabel}</SubmitButton>
         </form>
       )}
       <Link href={`/o/${occasion.slug}`} transitionTypes={["nav-forward"]} className={`${BTN_LIGHT} mt-2 w-full`}>

@@ -17,6 +17,7 @@ import { parsePrefs } from "@/lib/prefs";
 import { getRepo } from "@/lib/repo";
 import { getSaved } from "@/lib/saved";
 import { toScreen } from "@/lib/screen";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export async function generateMetadata({ params }: PageProps<"/o/[slug]">) {
   const occasion = getOccasion((await params).slug);
@@ -119,9 +120,9 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
           {top.map((r) => (
             <input key={r.place.id} type="hidden" name="placeId" value={r.place.id} />
           ))}
-          <button className={`${BTN_IPE} w-full`}>
+          <SubmitButton className={`${BTN_IPE} w-full`}>
             {occasion.decideLabel}
-          </button>
+          </SubmitButton>
         </form>
       )}
       <ReviewPrompt />

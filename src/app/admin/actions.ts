@@ -10,7 +10,15 @@ import { getRepo } from "@/lib/repo";
 import { TAGS } from "@/lib/tags";
 import type { PlacePatch } from "@/lib/repo/supabase";
 import type { Noise, PlaceStatus, SpendBand } from "@/lib/types";
+import { adminCoverUrl, adminId } from "@/lib/validation";
 import { normalizeWhatsapp } from "@/lib/whatsapp";
+
+/** id do lugar vindo do formulário; recusa o que não for UUID. */
+function idFrom(formData: FormData): string {
+  const id = adminId.safeParse(formData.get("id"));
+  if (!id.success) throw new Error("Lugar inválido");
+  return id.data;
+}
 
 /** Apaga os 12 lugares fictícios do seed, caso tenham ido parar no banco de produção. */
 export async function removeDemoPlaces() {
@@ -24,13 +32,17 @@ export async function setStatus(formData: FormData) {
   await requireAdmin();
   const status = String(formData.get("status")) as PlaceStatus;
   if (!["pending", "approved", "rejected"].includes(status)) return;
-  await getRepo().updatePlace(String(formData.get("id")), { status });
+  await getRepo().updatePlace(idFrom(formData), { status });
   updateTag(CATALOG_TAG);
   revalidatePath("/admin");
 }
 
-const text = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
-const intOrNull = (v: FormDataEntryValue | null) => (v ? Number(v) : null);
+const text = (v: FormDataEntryValue | null, max = 200) => String(v ?? "").trim().slice(0, max) || null;
+/** Faixa 1..max ou null (o banco também tem check, mas assim o erro não vira 500). */
+const bandOrNull = (v: FormDataEntryValue | null, max: number) => {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= max ? n : null;
+};
 
 /** Lê o formulário completo de lugar (usado para editar e para cadastrar à mão). */
 function readPlaceForm(formData: FormData): PlacePatch {
@@ -48,13 +60,14 @@ function readPlaceForm(formData: FormData): PlacePatch {
     address: text(formData.get("address")),
     googlePlaceId: text(formData.get("googlePlaceId")),
     whatsapp: normalizeWhatsapp(formData.get("whatsapp")),
-    coverUrl: text(formData.get("coverUrl")),
+    // Só http(s): evita javascript:, data: e afins num campo que vira src de imagem.
+    coverUrl: adminCoverUrl.catch(null).parse(String(formData.get("coverUrl") ?? "").trim()),
     cuisines: formData
       .getAll("cuisines")
       .map(String)
       .filter((c) => CUISINES.some((x) => x.slug === c)),
-    seedSpend: intOrNull(formData.get("seedSpend")) as SpendBand | null,
-    seedNoise: intOrNull(formData.get("seedNoise")) as Noise | null,
+    seedSpend: bandOrNull(formData.get("seedSpend"), 4) as SpendBand | null,
+    seedNoise: bandOrNull(formData.get("seedNoise"), 3) as Noise | null,
     seedCover: cover === "" ? null : cover === "1",
     vibe,
     tags: formData
@@ -67,7 +80,7 @@ function readPlaceForm(formData: FormData): PlacePatch {
 
 export async function saveDetails(formData: FormData) {
   await requireAdmin();
-  await getRepo().updatePlace(String(formData.get("id")), readPlaceForm(formData));
+  await getRepo().updatePlace(idFrom(formData), readPlaceForm(formData));
   updateTag(CATALOG_TAG);
   revalidatePath("/admin");
 }
@@ -85,6 +98,8 @@ export async function createPlace(formData: FormData) {
 
 export async function resolveClaim(formData: FormData) {
   await requireAdmin();
-  await getRepo().resolveClaim(Number(formData.get("id")), formData.get("approve") === "1");
+  const id = Number(formData.get("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) return;
+  await getRepo().resolveClaim(id, formData.get("approve") === "1");
   revalidatePath("/admin");
 }

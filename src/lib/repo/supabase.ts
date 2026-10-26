@@ -317,17 +317,18 @@ export function createRepo(url: string, secretKey: string) {
       if (r.userId) {
         check(await db.from("micro_reviews").delete().eq("place_id", r.placeId).eq("user_id", r.userId));
       }
-      check(
-        await db.from("micro_reviews").insert({
-          place_id: r.placeId,
-          user_id: r.userId,
-          device_id: r.deviceId,
-          occasion: r.occasion,
-          spend: r.spend,
-          cover: r.cover,
-          noise: r.noise,
-        }),
-      );
+      const res = await db.from("micro_reviews").insert({
+        place_id: r.placeId,
+        user_id: r.userId,
+        device_id: r.deviceId,
+        occasion: r.occasion,
+        spend: r.spend,
+        cover: r.cover,
+        noise: r.noise,
+      });
+      // 23505: este aparelho já avaliou o lugar nesta semana (ou dois envios ao mesmo tempo). Vale a primeira.
+      if (res.error?.code === "23505") return;
+      check(res);
     },
 
     async countUserReviews(userId: string): Promise<number> {

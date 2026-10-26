@@ -6,6 +6,7 @@ import { CUISINES } from "@/lib/cuisines";
 import { getOccasion } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import { saveOwnerDetails } from "./actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Painel do restaurante · Kombin" };
 
@@ -163,7 +164,7 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                     Foto de capa (até 4 MB)
                     <input name="cover" type="file" accept="image/*" className="mt-1 block w-full text-sm" />
                   </label>
-                  <button className={`${BTN_IPE} w-full`}>Salvar</button>
+                  <SubmitButton className={`${BTN_IPE} w-full`}>Salvar</SubmitButton>
                   <p className="text-[14px] text-muted">
                     Avaliações, gasto médio, couvert e barulho vêm dos clientes e não podem ser editados aqui.
                   </p>
