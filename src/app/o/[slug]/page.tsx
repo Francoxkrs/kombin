@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { createDecision } from "@/app/actions";
 import { ContextNotes } from "@/components/ContextNotes";
@@ -15,7 +15,7 @@ import { contextNotes, getDeviceId, getMatchContext, logSearch } from "@/lib/con
 import { cuisineLabel } from "@/lib/cuisines";
 import { rankPlaces } from "@/lib/match";
 import { getOccasion } from "@/lib/occasions";
-import { parsePrefs } from "@/lib/prefs";
+import { isSearch, parsePrefs, searchLoginHref } from "@/lib/prefs";
 import { getRepo } from "@/lib/repo";
 import { getSaved } from "@/lib/saved";
 import { toScreen } from "@/lib/screen";
@@ -34,6 +34,11 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
   if (!occasion) notFound();
 
   const [{ places, byId, signals }, user, sp] = await Promise.all([getCatalog(), getCurrentUser(), searchParams]);
+  // Ver a lista é livre; filtrar (busca) pede login, para o Kombin saber quem usa.
+  if (!user && isSearch(sp)) {
+    const q = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string"));
+    redirect(searchLoginHref(`/o/${occasion.slug}?${q}`));
+  }
   const [savedIndex, ctx, device] = await Promise.all([
     user ? getSaved(user.id) : { want: [] },
     getMatchContext(user?.id ?? null, byId),

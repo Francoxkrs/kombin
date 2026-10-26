@@ -10,16 +10,22 @@ export default async function LoginPage({ searchParams }: PageProps<"/entrar">) 
   const sp = await searchParams;
   const next = safeNext(typeof sp.next === "string" ? sp.next : null, "/perfil");
   if (await getCurrentUser()) redirect(next);
+  const search = sp.motivo === "busca";
+  // "Voltar" da busca reabre os filtros como a pessoa deixou.
+  const [, slug, query] = next.match(/^\/o\/([^/?]+)\??(.*)$/) ?? [];
+  const back = search && slug ? `/buscar?o=${slug}${query ? `&${query}` : ""}` : "/";
   const error = sp.erro ? "O link expirou ou já foi usado. Entre com sua senha ou peça um novo." : null;
 
   return (
     <Page>
-      <CityHero back="/">
-        <h1 className="title text-[48px]">Seus lugares, do seu jeito</h1>
+      <CityHero back={back}>
+        <h1 className="title text-[48px]">{search ? "Sua busca está pronta" : "Seus lugares, do seu jeito"}</h1>
       </CityHero>
       <main className="flex-1 px-5 pt-5 pb-12">
         <p className="mb-6 max-w-[34ch] text-[17px] leading-snug text-muted">
-          Guarde onde quer ir, ganhe o selo Explorador e, se tem um restaurante, acesse o painel.
+          {search
+            ? "Entre ou crie sua conta em meio minuto para ver os resultados. Assim o Kombin aprende o que combina com você."
+            : "Guarde onde quer ir, ganhe o selo Explorador e, se tem um restaurante, acesse o painel."}
         </p>
         <LoginForm next={next} error={error} google={process.env.AUTH_GOOGLE === "1"} />
         <p className="mt-8 text-[15px] text-muted">Ver lugares e votar em link de amigo não precisa de conta.</p>
