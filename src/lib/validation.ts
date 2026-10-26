@@ -86,7 +86,22 @@ export const ownerForm = z.object({
     .transform((s) => s || null),
   menuUrl: optionalUrl(300),
   cuisines: z.array(cuisineSlug).max(CUISINES.length),
+  about: cleanText(280).transform((s) => s || null),
+  tags: z.array(tagSlug).max(TAGS.length),
 });
+
+/** Prévia desfocada gerada no navegador: só o alfabeto do BlurHash, tamanho de 4x3 componentes. */
+export const blurhash = z.string().regex(/^[0-9A-Za-z#$%*+,\-.:;=?@[\]^_{|}~]{6,60}$/);
+
+/** Medidas de uma página do cardápio, lidas no navegador depois de reduzir a foto. */
+export const menuPageMeta = z.object({
+  blurhash: blurhash.nullable(),
+  w: z.number().int().min(1).max(4000),
+  h: z.number().int().min(1).max(4000),
+});
+
+/** Máximo de páginas de cardápio por lugar (12 x ~260 KB = ~3 MB por restaurante). */
+export const MAX_MENU_PAGES = 12;
 
 export const adminId = placeId;
 export const adminCoverUrl = optionalUrl(500);

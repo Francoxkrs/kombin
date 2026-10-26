@@ -67,7 +67,13 @@ function readPlaceForm(formData: FormData): PlacePatch {
 
 export async function saveDetails(formData: FormData) {
   await requireAdmin();
-  await getRepo().updatePlace(String(formData.get("id")), readPlaceForm(formData));
+  const repo = getRepo();
+  const id = String(formData.get("id"));
+  const patch = readPlaceForm(formData);
+  // Foto trocada à mão: a prévia desfocada da antiga não vale mais.
+  const before = await repo.getPlace(id);
+  if (before && patch.coverUrl !== before.coverUrl) patch.coverBlurhash = null;
+  await repo.updatePlace(id, patch);
   updateTag(CATALOG_TAG);
   revalidatePath("/admin");
 }

@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 // cacheComponents fica desligado no MVP: todas as páginas com dados são
 // renderizadas por requisição, o que é mais simples de entender e depurar.
 const nextConfig: NextConfig = {
-  // Foto de capa enviada pelo painel do restaurante (até 4 MB + margem do multipart).
+  // Fotos do painel do restaurante: o navegador reduz antes (~150-260 KB) e o servidor
+  // recusa acima de 2 MB; o limite daqui é essa foto mais a margem do multipart.
   experimental: {
-    serverActions: { bodySizeLimit: "5mb" },
+    serverActions: { bodySizeLimit: "3mb" },
   },
   turbopack: {
     rules: {

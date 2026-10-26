@@ -10,7 +10,7 @@ const TABS = [
 ];
 
 /** Telas com barra de ação própria no rodapé (filtros, ranking, lugar, votação, login) não mostram a navegação. */
-const HIDDEN = ["/buscar", "/o/", "/l/", "/v/", "/admin", "/painel", "/auth", "/entrar", "/redefinir-senha"];
+const HIDDEN = ["/buscar", "/o/", "/l/", "/v/", "/admin", "/painel", "/restaurantes", "/auth", "/entrar", "/redefinir-senha"];
 
 /** Navegação principal: texto, sem ícone, colada no rodapé. */
 export function TabBar() {

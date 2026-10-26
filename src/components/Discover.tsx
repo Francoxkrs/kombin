@@ -59,7 +59,7 @@ function Screen({
         viewport={{ amount: 0.6 }}
         transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Photo src={place.photos[0] ?? null} fallbacks={place.photos.slice(1)} alt="" className="absolute inset-0" eager={first} />
+        <Photo src={place.photos[0] ?? null} fallbacks={place.photos.slice(1)} blurhash={place.blurhash} alt="" className="absolute inset-0" eager={first} />
       </motion.div>
       <div className="scrim-bottom absolute inset-x-0 bottom-0 h-[75%]" />
       <div className="absolute inset-x-0 bottom-0 px-5 pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
