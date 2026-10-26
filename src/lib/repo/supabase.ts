@@ -40,6 +40,8 @@ const PLACE_COLUMNS =
 /** Colunas de antes da migração 0003 (tags, featured), para o app não cair se ela ainda não rodou. */
 const LEGACY_PLACE_COLUMNS = PLACE_COLUMNS.replace(", tags, featured", "");
 let placeColumns = PLACE_COLUMNS;
+/** WhatsApp falso dos lugares fictícios de supabase/seed.sql. */
+const DEMO_WHATSAPP = "5567999999999";
 
 function toPlace(r: PlaceRow): Place {
   return {
@@ -239,6 +241,25 @@ export function createRepo(url: string, secretKey: string) {
         await db.from("places").select("google_place_id").not("google_place_id", "is", null),
       ) as { google_place_id: string }[];
       return new Set(rows.map((r) => r.google_place_id));
+    },
+
+    /** Quantos lugares fictícios do seed de desenvolvimento existem (WhatsApp falso e sem Google). */
+    async countDemoPlaces(): Promise<number> {
+      const { count, error } = await db
+        .from("places")
+        .select("id", { count: "exact", head: true })
+        .eq("whatsapp", DEMO_WHATSAPP)
+        .is("google_place_id", null);
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return count ?? 0;
+    },
+
+    /** Apaga os lugares fictícios (votos, avaliações e salvos deles vão junto). */
+    async deleteDemoPlaces(): Promise<number> {
+      const rows = check(
+        await db.from("places").delete().eq("whatsapp", DEMO_WHATSAPP).is("google_place_id", null).select("id"),
+      ) as { id: string }[];
+      return rows.length;
     },
 
     /** Grava um lugar vindo da importação do Google (cria ou atualiza pelo place_id). */

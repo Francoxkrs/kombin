@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type GPlace, neighborhoodOf, passesFilter } from "../src/lib/ingest/google";
+import { filterReason, type GPlace, neighborhoodOf, passesFilter } from "../src/lib/ingest/google";
 import { heuristicVibe, placeRowFromGoogle, spendFromGoogle, tagsFromGoogle } from "../src/lib/ingest/heuristic";
 
 const base: GPlace = {
@@ -52,6 +52,9 @@ test("filtro: só lugar aberto, de comida, com foto e prova social", () => {
   assert.equal(passesFilter({ ...base, businessStatus: "CLOSED_PERMANENTLY" }), false);
   assert.equal(passesFilter({ ...base, types: ["gym", "point_of_interest"] }), false);
   assert.equal(passesFilter({ ...base, rating: 4.0 }, { minRating: 4, minReviews: 50 }), true);
+  assert.equal(filterReason({ ...base, rating: 4.1 }), "nota abaixo de 4,2");
+  assert.equal(filterReason({ ...base, userRatingCount: 90 }), "menos de 150 avaliações");
+  assert.equal(filterReason(base), null);
 });
 
 test("atributos do Google viram etiquetas", () => {

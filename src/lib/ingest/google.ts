@@ -207,16 +207,19 @@ export interface SocialProof {
 
 export const DEFAULT_PROOF: SocialProof = { minRating: 4.2, minReviews: 150 };
 
+/** Por que o lugar fica de fora (null = entra). */
+export function filterReason(p: GPlace, proof: SocialProof = DEFAULT_PROOF): string | null {
+  if (p.businessStatus === "CLOSED_PERMANENTLY" || p.businessStatus === "CLOSED_TEMPORARILY") return "fechado";
+  if (!isFoodPlace(p)) return "não é de comer";
+  if ((p.rating ?? 0) < proof.minRating) return `nota abaixo de ${String(proof.minRating).replace(".", ",")}`;
+  if ((p.userRatingCount ?? 0) < proof.minReviews) return `menos de ${proof.minReviews} avaliações`;
+  if ((p.photos?.length ?? 0) === 0) return "sem foto";
+  return null;
+}
+
 /** Aberto, de comer/beber, com foto e com nota e volume de avaliações mínimos. */
 export function passesFilter(p: GPlace, proof: SocialProof = DEFAULT_PROOF): boolean {
-  return (
-    p.businessStatus !== "CLOSED_PERMANENTLY" &&
-    p.businessStatus !== "CLOSED_TEMPORARILY" &&
-    isFoodPlace(p) &&
-    (p.rating ?? 0) >= proof.minRating &&
-    (p.userRatingCount ?? 0) >= proof.minReviews &&
-    (p.photos?.length ?? 0) > 0
-  );
+  return filterReason(p, proof) === null;
 }
 
 export function neighborhoodOf(p: GPlace): string | null {

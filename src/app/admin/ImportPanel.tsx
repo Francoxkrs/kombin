@@ -10,6 +10,14 @@ interface LogLine {
   kind: "ok" | "info" | "error";
 }
 
+/** ", 12 com nota abaixo de 4,2, 8 já no app" */
+function describe(reasons: Record<string, number>): string {
+  const parts = Object.entries(reasons)
+    .sort((a, b) => b[1] - a[1])
+    .map(([why, n]) => `${n} ${why}`);
+  return parts.length ? `: ${parts.join(", ")}` : "";
+}
+
 /** Importação do Google pelo navegador: uma busca por vez, com barra de progresso. */
 export function ImportPanel({
   queries,
@@ -50,7 +58,7 @@ export function ImportPanel({
       push({
         text: r.added.length
           ? `${r.label}: +${r.added.length} (${r.added.slice(0, 3).join(", ")}${r.added.length > 3 ? "…" : ""})`
-          : `${r.label}: nada novo (${r.found} encontrados)`,
+          : `${r.label}: nada novo (${r.found} encontrados${describe(r.reasons)})`,
         kind: r.added.length ? "ok" : "info",
       });
       setQueue((n) => n + r.added.length);

@@ -3,13 +3,13 @@
 import { updateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { CATALOG_TAG } from "@/lib/catalog";
-import { DEFAULT_PROOF, GoogleError, passesFilter, photoBytes, photoNames, placeDetails, QUERIES, textSearch } from "@/lib/ingest/google";
+import { DEFAULT_PROOF, filterReason, GoogleError, photoBytes, photoNames, placeDetails, QUERIES, textSearch } from "@/lib/ingest/google";
 import { placeRowFromGoogle } from "@/lib/ingest/heuristic";
 import { vibeCheck, visionModelName, type VisionImage, type VisionProvider } from "@/lib/ingest/vision";
 import { getRepo } from "@/lib/repo";
 
 export type ImportResult =
-  | { ok: true; label: string; found: number; added: string[]; skipped: number }
+  | { ok: true; label: string; found: number; added: string[]; skipped: number; reasons: Record<string, number> }
   | { ok: false; error: string };
 
 function googleKey(): string {
@@ -42,14 +42,26 @@ export async function importQuery(index: number): Promise<ImportResult> {
     const key = googleKey();
     const repo = getRepo();
     const [found, known] = await Promise.all([textSearch(key, query.q, 1), repo.knownGoogleIds()]);
-    const fresh = found.filter((p) => !known.has(p.id) && passesFilter(p, DEFAULT_PROOF));
+    const reasons: Record<string, number> = {};
+    const fresh = found.filter((p) => {
+      const why = known.has(p.id) ? "já no app" : filterReason(p, DEFAULT_PROOF);
+      if (why) reasons[why] = (reasons[why] ?? 0) + 1;
+      return !why;
+    });
+    if (fresh.length === 0 && found[0] && !reasons["já no app"]) {
+      const { displayName, rating, userRatingCount, types, businessStatus, photos } = found[0];
+      console.log(
+        "importação: nenhum lugar passou",
+        JSON.stringify({ displayName, rating, userRatingCount, types, businessStatus, photos: photos?.length }),
+      );
+    }
     const added: string[] = [];
     for (const p of fresh) {
       await repo.upsertImported({ ...placeRowFromGoogle(p), status: "approved" });
       added.push(p.displayName?.text ?? "?");
     }
     if (added.length) updateTag(CATALOG_TAG);
-    return { ok: true, label: query.label, found: found.length, added, skipped: found.length - fresh.length };
+    return { ok: true, label: query.label, found: found.length, added, skipped: found.length - fresh.length, reasons };
   } catch (e) {
     return { ok: false, error: explain(e) };
   }

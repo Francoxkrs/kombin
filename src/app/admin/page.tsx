@@ -7,7 +7,7 @@ import { OCCASIONS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import type { PlaceStatus } from "@/lib/types";
 import { QUERIES } from "@/lib/ingest/google";
-import { createPlace, resolveClaim, saveDetails, setStatus } from "./actions";
+import { createPlace, removeDemoPlaces, resolveClaim, saveDetails, setStatus } from "./actions";
 import { ImportPanel } from "./ImportPanel";
 import { PlaceFields } from "./PlaceFields";
 
@@ -78,14 +78,29 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 }
 
 async function Import() {
-  const queue = (await getRepo().placesWithoutVision()).length;
+  const repo = getRepo();
+  const [queue, demo] = await Promise.all([repo.placesWithoutVision().then((l) => l.length), repo.countDemoPlaces()]);
   return (
-    <ImportPanel
-      queries={QUERIES.map((q) => q.label)}
-      hasGoogleKey={!!process.env.GOOGLE_MAPS_API_KEY}
-      hasVision={!!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)}
-      visionQueue={queue}
-    />
+    <>
+      {demo > 0 && (
+        <form action={removeDemoPlaces} className="mb-4 rounded-[1.5rem] border border-amber-300 bg-amber-50 p-4">
+          <p className="font-extrabold">Há {demo} lugares fictícios no banco</p>
+          <p className="mt-1 text-sm text-ink-2">
+            São os lugares de teste (Adega Lume, Varanda do Samba...), sem foto e com WhatsApp falso. Apague antes de
+            divulgar o app.
+          </p>
+          <button className="press mt-3 w-full rounded-xl bg-foreground py-3 font-bold text-white">
+            Apagar lugares fictícios
+          </button>
+        </form>
+      )}
+      <ImportPanel
+        queries={QUERIES.map((q) => q.label)}
+        hasGoogleKey={!!process.env.GOOGLE_MAPS_API_KEY}
+        hasVision={!!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)}
+        visionQueue={queue}
+      />
+    </>
   );
 }
 
