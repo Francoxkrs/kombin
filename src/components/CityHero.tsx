@@ -18,7 +18,7 @@ export async function CityHero({ back, children }: { back?: string; children: Re
 
   return (
     <div className="relative h-[48svh] min-h-[340px]">
-      <Photo src={photos[0] ?? null} fallbacks={photos.slice(1)} alt="" className="absolute inset-0" eager />
+      <Photo src={photos[0] ?? null} fallbacks={photos.slice(1)} blurhash={top?.coverUrl ? top.coverBlurhash : null} alt="" className="absolute inset-0" eager />
       <div className="scrim-top absolute inset-x-0 top-0 h-28" />
       <div className="scrim-bottom absolute inset-x-0 bottom-0 h-3/4" />
       <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">

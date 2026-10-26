@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { createDecision } from "@/app/actions";
+import { ContextNotes } from "@/components/ContextNotes";
 import { PlaceLine, PlacePoster } from "@/components/PlacePoster";
 import { QuickPrefs } from "@/components/QuickPrefs";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
@@ -10,6 +11,7 @@ import { BTN_IPE, BTN_LIGHT } from "@/components/ui/styles";
 import { TopBar } from "@/components/ui/TopBar";
 import { getCurrentUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
+import { contextNotes, getDeviceId, getMatchContext, logSearch } from "@/lib/context";
 import { cuisineLabel } from "@/lib/cuisines";
 import { rankPlaces } from "@/lib/match";
 import { getOccasion } from "@/lib/occasions";
@@ -17,6 +19,7 @@ import { isSearch, parsePrefs, searchLoginHref } from "@/lib/prefs";
 import { getRepo } from "@/lib/repo";
 import { getSaved } from "@/lib/saved";
 import { toScreen } from "@/lib/screen";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export async function generateMetadata({ params }: PageProps<"/o/[slug]">) {
   const occasion = getOccasion((await params).slug);
@@ -30,16 +33,25 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
   const occasion = getOccasion((await params).slug);
   if (!occasion) notFound();
 
-  const [{ places, signals }, user, sp] = await Promise.all([getCatalog(), getCurrentUser(), searchParams]);
+  const [{ places, byId, signals }, user, sp] = await Promise.all([getCatalog(), getCurrentUser(), searchParams]);
   // Ver a lista é livre; filtrar (busca) pede login, para o Kombin saber quem usa.
   if (!user && isSearch(sp)) {
     const q = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === "string"));
     redirect(searchLoginHref(`/o/${occasion.slug}?${q}`));
   }
-  const saved = new Set(user ? (await getSaved(user.id)).want : []);
+  const [savedIndex, ctx, device] = await Promise.all([
+    user ? getSaved(user.id) : { want: [] },
+    getMatchContext(user?.id ?? null, byId),
+    getDeviceId(),
+  ]);
+  const saved = new Set(savedIndex.want);
   const prefs = parsePrefs(sp);
-  const results = rankPlaces(places, signals, occasion, prefs);
+  const results = rankPlaces(places, signals, occasion, { ...prefs, ...ctx });
   const top = results.slice(0, 3);
+  const notes = contextNotes(ctx);
+
+  // A busca entra no aprendizado do gosto (e nas métricas), depois de responder.
+  after(() => logSearch(user?.id ?? null, device, occasion.slug, prefs));
 
   // Conta a aparição no top 3 (número do painel do restaurante), depois de responder.
   if (top.length > 0 && occasion.slug !== "tudo") {
@@ -66,6 +78,7 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
         <header className="px-5 pt-4">
           <h1 className="title text-[48px] text-balance">{title}</h1>
           <p className="mt-3 max-w-[34ch] text-[17px] leading-snug text-muted">{occasion.tagline}</p>
+          <ContextNotes notes={notes} className="mt-4" />
         </header>
 
         <div className="mt-6">
@@ -124,9 +137,9 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
           {top.map((r) => (
             <input key={r.place.id} type="hidden" name="placeId" value={r.place.id} />
           ))}
-          <button className={`${BTN_IPE} w-full`}>
+          <SubmitButton className={`${BTN_IPE} w-full`}>
             {occasion.decideLabel}
-          </button>
+          </SubmitButton>
         </form>
       )}
       <ReviewPrompt />

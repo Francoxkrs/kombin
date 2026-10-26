@@ -18,7 +18,13 @@ export interface Place {
   whatsapp: string | null;
   instagram: string | null;
   coverUrl: string | null;
+  /** Prévia desfocada da foto de capa do dono (BlurHash). */
+  coverBlurhash: string | null;
   menuUrl: string | null;
+  /** Páginas do cardápio, fotografadas pelo dono. */
+  menuPhotos: MenuPhoto[];
+  /** Recado da casa, escrito pelo dono. */
+  about: string | null;
   /** Tipos de comida (slugs de src/lib/cuisines.ts). */
   cuisines: string[];
   status: PlaceStatus;
@@ -37,12 +43,24 @@ export interface Place {
   featured: boolean;
 }
 
+/** Uma página do cardápio, já otimizada no navegador do dono. */
+export interface MenuPhoto {
+  url: string;
+  blurhash: string | null;
+  w: number;
+  h: number;
+}
+
 /** Agregado das micro-reviews de um lugar. */
 export interface PlaceSignals {
   reviews: number;
   spendAvg: number | null;
   noiseAvg: number | null;
   coverRatio: number | null;
+  /** Quantas das avaliações têm visita confirmada (check-in ou "Como chegar" antes). */
+  verified?: number;
+  /** Peso somado das avaliações: 1 cada, 2 com visita confirmada. Sem a migração 0006, fica vazio. */
+  weight?: number;
 }
 
 export interface MicroReview {
@@ -52,6 +70,8 @@ export interface MicroReview {
   spend: SpendBand;
   cover: boolean;
   noise: Noise;
+  /** Visita confirmada: check-in no raio do lugar ou "Como chegar" algumas horas antes. */
+  verified?: boolean;
 }
 
 export interface DecisionSession {

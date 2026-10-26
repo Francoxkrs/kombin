@@ -157,7 +157,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/perfil">
         )}
 
         <section className="mt-10 px-5">
-          <Link href="/painel" className="block">
+          <Link href={owned.length > 0 ? "/painel" : "/restaurantes"} className="block">
             <Row
               title={owned.length > 0 ? "Painel do restaurante" : "Tem um restaurante?"}
               hint={owned.length > 0 ? "Aparições, cliques e edição da página" : "Reivindique a página e veja os clientes que chegam"}

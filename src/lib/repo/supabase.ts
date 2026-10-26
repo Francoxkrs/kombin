@@ -1,8 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newCode } from "../code";
+import type { ChoiceEvent, SearchEvent } from "../taste";
 import type {
   DecisionSession,
   LeadKind,
+  MenuPhoto,
   MicroReview,
   Place,
   PlaceSignals,
@@ -33,13 +35,26 @@ interface PlaceRow {
   ai_model: string | null;
   tags: string[] | null;
   featured: boolean | null;
+  menu_photos?: MenuPhoto[] | null;
+  cover_blurhash?: string | null;
+  about?: string | null;
 }
 
 const PLACE_COLUMNS =
-  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary, ai_model, tags, featured";
-/** Colunas de antes da migração 0003 (tags, featured), para o app não cair se ela ainda não rodou. */
-const LEGACY_PLACE_COLUMNS = PLACE_COLUMNS.replace(", tags, featured", "");
-let placeColumns = PLACE_COLUMNS;
+  "id, google_place_id, name, category, neighborhood, address, lat, lng, whatsapp, instagram, cover_url, menu_url, cuisines, status, seed_spend, seed_noise, seed_cover, vibe, ai_summary, ai_model, tags, featured, menu_photos, cover_blurhash, about";
+/**
+ * Colunas de antes das migrações 0005 (cardápio) e 0003 (tags, featured), da mais nova para a
+ * mais antiga, para o app não cair se alguma ainda não rodou.
+ */
+const COLUMN_SETS = [
+  { columns: PLACE_COLUMNS, migration: null },
+  { columns: PLACE_COLUMNS.replace(", menu_photos, cover_blurhash, about", ""), migration: "0005_cardapio_dono.sql" },
+  {
+    columns: PLACE_COLUMNS.replace(", tags, featured, menu_photos, cover_blurhash, about", ""),
+    migration: "0003_tags_destaque.sql",
+  },
+];
+let columnSet = 0;
 /** WhatsApp falso dos lugares fictícios de supabase/seed.sql. */
 const DEMO_WHATSAPP = "5567999999999";
 
@@ -56,7 +71,10 @@ function toPlace(r: PlaceRow): Place {
     whatsapp: r.whatsapp,
     instagram: r.instagram,
     coverUrl: r.cover_url,
+    coverBlurhash: r.cover_blurhash ?? null,
     menuUrl: r.menu_url,
+    menuPhotos: Array.isArray(r.menu_photos) ? r.menu_photos : [],
+    about: r.about ?? null,
     cuisines: r.cuisines ?? [],
     status: r.status,
     seedSpend: r.seed_spend,
@@ -80,7 +98,10 @@ export type PlacePatch = Partial<
     | "whatsapp"
     | "instagram"
     | "coverUrl"
+    | "coverBlurhash"
     | "menuUrl"
+    | "menuPhotos"
+    | "about"
     | "cuisines"
     | "seedSpend"
     | "seedNoise"
@@ -102,7 +123,10 @@ const PATCH_COLUMNS: Record<keyof PlacePatch, string> = {
   whatsapp: "whatsapp",
   instagram: "instagram",
   coverUrl: "cover_url",
+  coverBlurhash: "cover_blurhash",
   menuUrl: "menu_url",
+  menuPhotos: "menu_photos",
+  about: "about",
   cuisines: "cuisines",
   seedSpend: "seed_spend",
   seedNoise: "seed_noise",
@@ -129,15 +153,15 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
   return res.data;
 }
 
-/** Lê lugares; se a migração 0003 não rodou (coluna inexistente, 42703), lê sem as colunas novas. */
+/** Lê lugares; se uma migração não rodou (coluna inexistente, 42703), lê sem as colunas dela. */
 async function selectPlaces<T>(
   run: (columns: string) => PromiseLike<{ data: T; error: { message: string; code?: string } | null }>,
 ): Promise<T> {
-  const res = await run(placeColumns);
-  if (res.error?.code === "42703" && placeColumns !== LEGACY_PLACE_COLUMNS) {
-    console.warn("Kombin: rode supabase/migrations/0003_tags_destaque.sql no SQL Editor do Supabase.");
-    placeColumns = LEGACY_PLACE_COLUMNS;
-    return check(await run(placeColumns));
+  let res = await run(COLUMN_SETS[columnSet].columns);
+  while (res.error?.code === "42703" && columnSet < COLUMN_SETS.length - 1) {
+    columnSet++;
+    console.warn(`Kombin: rode supabase/migrations/${COLUMN_SETS[columnSet].migration} no SQL Editor do Supabase.`);
+    res = await run(COLUMN_SETS[columnSet].columns);
   }
   return check(res);
 }
@@ -225,14 +249,28 @@ export function createRepo(url: string, secretKey: string) {
       );
     },
 
-    async uploadCover(placeId: string, file: File): Promise<string> {
-      const ext = (file.type.split("/")[1] ?? "jpg").replace("jpeg", "jpg");
-      const path = `${placeId}/${Date.now()}.${ext}`;
+    /** Foto já validada e sem metadados (veja src/lib/upload.ts), na pasta da capa ou do cardápio. */
+    async uploadImage(
+      placeId: string,
+      image: { bytes: Uint8Array; type: string; ext: string },
+      folder: "capa" | "cardapio" = "capa",
+    ): Promise<string> {
+      const path = `${placeId}/${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${image.ext}`;
       const { error } = await db.storage
         .from("covers")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, image.bytes, { contentType: image.type, upsert: false, cacheControl: "31536000" });
       if (error) throw new Error(`Upload: ${error.message}`);
       return db.storage.from("covers").getPublicUrl(path).data.publicUrl;
+    },
+
+    /** Apaga do bucket uma foto do próprio lugar (URL de fora ou de outra pasta fica intacta). */
+    async deleteImage(placeId: string, url: string): Promise<void> {
+      const marker = "/storage/v1/object/public/covers/";
+      const i = url.indexOf(marker);
+      if (i < 0) return;
+      const path = decodeURIComponent(url.slice(i + marker.length));
+      if (!path.startsWith(`${placeId}/`) || path.includes("..")) return;
+      await db.storage.from("covers").remove([path]);
     },
 
     /** google_place_id de todos os lugares já no banco (para a importação pular). */
@@ -295,19 +333,31 @@ export function createRepo(url: string, secretKey: string) {
     // ---------- Sinais da galera ----------
 
     async getSignals(): Promise<Map<string, PlaceSignals>> {
-      const rows = check(
-        await db.from("place_signals").select("place_id, reviews, spend_avg, noise_avg, cover_ratio"),
-      ) as {
+      type Row = {
         place_id: string;
         reviews: number;
         spend_avg: number;
         noise_avg: number;
         cover_ratio: number;
-      }[];
+        verified?: number;
+        weight?: number;
+      };
+      const base = "place_id, reviews, spend_avg, noise_avg, cover_ratio";
+      let res = await db.from("place_signals").select(`${base}, verified, weight`);
+      // Sem a migração 0006 a view não tem as colunas de visita confirmada: segue sem elas.
+      if (res.error?.code === "42703") res = await db.from("place_signals").select(base);
+      const rows = check(res) as unknown as Row[];
       return new Map(
         rows.map((r) => [
           r.place_id,
-          { reviews: r.reviews, spendAvg: r.spend_avg, noiseAvg: r.noise_avg, coverRatio: r.cover_ratio },
+          {
+            reviews: r.reviews,
+            spendAvg: r.spend_avg,
+            noiseAvg: r.noise_avg,
+            coverRatio: r.cover_ratio,
+            verified: r.verified ?? undefined,
+            weight: r.weight ?? undefined,
+          },
         ]),
       );
     },
@@ -317,17 +367,39 @@ export function createRepo(url: string, secretKey: string) {
       if (r.userId) {
         check(await db.from("micro_reviews").delete().eq("place_id", r.placeId).eq("user_id", r.userId));
       }
-      check(
-        await db.from("micro_reviews").insert({
-          place_id: r.placeId,
-          user_id: r.userId,
-          device_id: r.deviceId,
-          occasion: r.occasion,
-          spend: r.spend,
-          cover: r.cover,
-          noise: r.noise,
-        }),
-      );
+      const row: Record<string, unknown> = {
+        place_id: r.placeId,
+        user_id: r.userId,
+        device_id: r.deviceId,
+        occasion: r.occasion,
+        spend: r.spend,
+        cover: r.cover,
+        noise: r.noise,
+      };
+      if (r.verified) row.verified = true;
+      let res = await db.from("micro_reviews").insert(row);
+      // Sem a migração 0006 não há a coluna "verified": grava a avaliação mesmo assim.
+      if (res.error && r.verified && res.error.message.includes("verified")) {
+        delete row.verified;
+        res = await db.from("micro_reviews").insert(row);
+      }
+      // 23505: este aparelho já avaliou o lugar nesta semana (ou dois envios ao mesmo tempo). Vale a primeira.
+      if (res.error?.code === "23505") return;
+      check(res);
+    },
+
+    /** Este aparelho clicou em "Como chegar" deste lugar entre `minMinutes` e `maxHours` atrás? */
+    async clickedDirections(placeId: string, deviceId: string, minMinutes: number, maxHours: number): Promise<boolean> {
+      const { count, error } = await db
+        .from("lead_clicks")
+        .select("id", { count: "exact", head: true })
+        .eq("place_id", placeId)
+        .eq("device_id", deviceId)
+        .eq("kind", "directions")
+        .gte("created_at", new Date(Date.now() - maxHours * 3_600_000).toISOString())
+        .lte("created_at", new Date(Date.now() - minMinutes * 60_000).toISOString());
+      if (error) throw new Error(error.message);
+      return (count ?? 0) > 0;
     },
 
     async countUserReviews(userId: string): Promise<number> {
@@ -337,6 +409,89 @@ export function createRepo(url: string, secretKey: string) {
         .eq("user_id", userId);
       if (error) throw new Error(error.message);
       return count ?? 0;
+    },
+
+    // ---------- Buscas e gosto da pessoa ----------
+
+    /** Grava a busca, a menos que seja igual à última deste aparelho nos últimos 10 minutos (voltar não conta). */
+    async logSearch(e: {
+      userId: string | null;
+      deviceId: string;
+      occasion: string;
+      cuisine: string | null;
+      budget: number | null;
+      party: string | null;
+      neighborhood: string | null;
+      tags: string[];
+      quiet: boolean;
+      noCover: boolean;
+    }): Promise<void> {
+      const row = {
+        user_id: e.userId,
+        device_id: e.deviceId,
+        occasion: e.occasion,
+        cuisine: e.cuisine,
+        budget: e.budget,
+        party: e.party,
+        neighborhood: e.neighborhood,
+        tags: [...e.tags].sort(),
+        quiet: e.quiet,
+        no_cover: e.noCover,
+      };
+      const last = check(
+        await db
+          .from("search_log")
+          .select("user_id, occasion, cuisine, budget, party, neighborhood, tags, quiet, no_cover")
+          .eq("device_id", e.deviceId)
+          .gte("created_at", sinceIso(10 / 1440))
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ) as Record<string, unknown> | null;
+      const same = (r: Record<string, unknown>) =>
+        JSON.stringify([r.user_id, r.occasion, r.cuisine, r.budget, r.party, r.neighborhood, r.tags, r.quiet, r.no_cover]);
+      if (last && same(last) === same(row)) return;
+      check(await db.from("search_log").insert(row));
+    },
+
+    /**
+     * O que serve para aprender o gosto: as últimas buscas (da conta, ou do aparelho sem conta)
+     * e os lugares escolhidos (Como chegar e WhatsApp do aparelho, salvos e avaliados da conta).
+     */
+    async tasteEvents(userId: string | null, deviceId: string | null): Promise<{ searches: SearchEvent[]; choices: ChoiceEvent[] }> {
+      const since = sinceIso(180);
+      type SearchRow = { occasion: string; cuisine: string | null; budget: number | null; tags: string[] | null; quiet: boolean; created_at: string };
+      type ChoiceRow = { place_id: string; created_at: string };
+      const none = Promise.resolve({ data: [], error: null });
+      const searchQ = db
+        .from("search_log")
+        .select("occasion, cuisine, budget, tags, quiet, created_at")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      const [searches, leads, saved, reviews] = await Promise.all([
+        userId ? searchQ.eq("user_id", userId) : deviceId ? searchQ.eq("device_id", deviceId) : none,
+        deviceId
+          ? db.from("lead_clicks").select("place_id, created_at").eq("device_id", deviceId).gte("created_at", since).limit(100)
+          : none,
+        userId ? db.from("saved_places").select("place_id, created_at").eq("user_id", userId).limit(100) : none,
+        userId
+          ? db.from("micro_reviews").select("place_id, created_at").eq("user_id", userId).gte("created_at", since).limit(100)
+          : none,
+      ]);
+      return {
+        searches: (check(searches) as SearchRow[]).map((r) => ({
+          at: Date.parse(r.created_at),
+          occasion: r.occasion,
+          cuisine: r.cuisine,
+          budget: r.budget,
+          tags: r.tags ?? [],
+          quiet: r.quiet,
+        })),
+        choices: [leads, saved, reviews].flatMap((r) =>
+          (check(r) as ChoiceRow[]).map((c) => ({ at: Date.parse(c.created_at), placeId: c.place_id })),
+        ),
+      };
     },
 
     // ---------- Decidir com o grupo ----------
