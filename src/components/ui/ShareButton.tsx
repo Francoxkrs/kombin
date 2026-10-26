@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Share2 } from "lucide-react";
+import { Check, Share } from "lucide-react";
 import { useState } from "react";
+import { ROUND_LIGHT } from "./styles";
 
 export function ShareButton({ title, text, path }: { title: string; text: string; path: string }) {
   const [copied, setCopied] = useState(false);
@@ -16,13 +17,8 @@ export function ShareButton({ title, text, path }: { title: string; text: string
     }
   }
   return (
-    <button
-      type="button"
-      onClick={share}
-      aria-label="Compartilhar"
-      className="press grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md"
-    >
-      {copied ? <Check className="size-[18px] text-emerald-400" strokeWidth={2} /> : <Share2 className="size-[18px]" strokeWidth={1.5} />}
+    <button type="button" onClick={share} aria-label={copied ? "Link copiado" : "Compartilhar"} className={ROUND_LIGHT}>
+      {copied ? <Check className="size-5" strokeWidth={2.2} /> : <Share className="size-5" strokeWidth={2} />}
     </button>
   );
 }

@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BTN_IPE, INPUT } from "@/components/ui/styles";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createBrowserAuthClient } from "@/lib/supabase/browser";
 
@@ -33,16 +34,16 @@ export function NewPasswordForm() {
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Nova senha (mín. 8)"
         autoComplete="new-password"
-        className="w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-[0.95rem] outline-none focus:border-foreground"
+        className={INPUT}
       />
       {message && (
-        <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="text-[15px] text-danger">
           {message}
         </p>
       )}
       <button
         disabled={busy}
-        className="press flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-sm font-semibold text-background disabled:opacity-60"
+        className={`${BTN_IPE} w-full`}
       >
         {busy && <Loader2 className="size-4 animate-spin" />} Salvar senha
       </button>

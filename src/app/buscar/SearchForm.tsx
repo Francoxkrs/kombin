@@ -1,10 +1,9 @@
 "use client";
 
-import { ArrowRight, Baby, MessagesSquare, RotateCcw, Ticket } from "lucide-react";
 import { animate, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Glyph } from "@/components/ui/Glyph";
+import { BTN_IPE, BTN_QUIET, chip } from "@/components/ui/styles";
 import { rankPlaces } from "@/lib/match";
 import { ANY_OCCASION, BUDGET_OPTIONS, getOccasion, OCCASIONS, PARTY_OPTIONS, type Party } from "@/lib/occasions";
 import type { Place, PlaceSignals, SpendBand } from "@/lib/types";
@@ -35,80 +34,53 @@ function Count({ value }: { value: number }) {
   return <span ref={ref}>{value}</span>;
 }
 
-function Section({ title, accent, children }: { title: string; accent?: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-line py-6">
-      <h2 className="mb-3 text-[0.95rem] font-semibold tracking-[-0.01em]">
-        {title} {accent && <span className="accent text-[1.15em]">{accent}</span>}
-      </h2>
+    <section className="pt-9">
+      <h2 className="title mb-4 text-[28px]">{title}</h2>
       {children}
     </section>
   );
 }
 
-/** Seletor em trilho (uma opção por vez, com a pílula que desliza). */
+/** Uma opção por vez, em pílulas do mesmo tamanho. */
 function Segmented({
-  id,
   options,
   value,
   onChange,
 }: {
-  id: string;
   options: readonly { value: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="grid gap-1 rounded-2xl border border-line bg-soft p-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(value === o.value ? "" : o.value)}
           aria-pressed={value === o.value}
-          className="relative rounded-xl px-1 py-3 text-xs font-medium"
+          className={`press flex min-h-11 items-center justify-center rounded-full px-2 text-center text-[15px] leading-tight transition-colors duration-200 ${
+            value === o.value ? "bg-foreground font-semibold text-background" : "bg-surface text-foreground"
+          }`}
         >
-          {value === o.value && (
-            <motion.span
-              layoutId={id}
-              className="absolute inset-0 rounded-xl bg-foreground shadow-sm"
-              transition={{ type: "spring", stiffness: 500, damping: 40 }}
-            />
-          )}
-          <span className={`relative transition-colors ${value === o.value ? "text-background" : "text-foreground"}`}>{o.label}</span>
+          {o.label}
         </button>
       ))}
     </div>
   );
 }
 
-function Toggle({
-  icon,
-  label,
-  hint,
-  on,
-  onChange,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-  on: boolean;
-  onChange: () => void;
-}) {
+function Toggle({ label, hint, on, onChange }: { label: string; hint: string; on: boolean; onChange: () => void }) {
   return (
-    <button
-      role="switch"
-      aria-checked={on}
-      onClick={onChange}
-      className="press flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-left"
-    >
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-soft text-foreground">{icon}</span>
+    <button role="switch" aria-checked={on} onClick={onChange} className="press flex w-full items-center gap-4 py-3 text-left">
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="block text-xs text-muted">{hint}</span>
+        <span className="block text-[17px] font-medium">{label}</span>
+        <span className="block text-[15px] text-muted">{hint}</span>
       </span>
-      <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? "bg-foreground" : "bg-line"}`}>
+      <span className={`relative h-8 w-[52px] shrink-0 rounded-full transition-colors ${on ? "bg-ipe" : "bg-soft"}`}>
         <motion.span
-          className="absolute top-1 left-1 size-5 rounded-full bg-surface shadow"
+          className={`absolute top-1 left-1 size-6 rounded-full ${on ? "bg-on-ipe" : "bg-muted"}`}
           animate={{ x: on ? 20 : 0 }}
           transition={{ type: "spring", stiffness: 600, damping: 35 }}
         />
@@ -161,22 +133,13 @@ export function SearchForm({
     router.push(`/o/${occasion.slug}${q.size ? `?${q}` : ""}`, { transitionTypes: ["nav-forward"] });
   }
 
-  const chip = (active: boolean) =>
-    `press flex items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-medium transition-colors duration-200 ${
-      active ? "border-foreground bg-foreground text-background" : "border-line bg-surface text-foreground"
-    }`;
-
   return (
     <>
-      <main className="flex-1 px-5 pb-36">
-        <h1 className="rise mt-3 text-4xl leading-[1.05] font-bold tracking-tight">
-          O que <span className="accent text-[1.12em]">combina</span> com você hoje?
-        </h1>
-        <p className="rise mt-2 mb-5 text-sm text-muted" style={{ "--i": 1 } as React.CSSProperties}>
-          Preencha só o que importa. O resto a gente calcula.
-        </p>
+      <main className="flex-1 px-5 pb-32">
+        <h1 className="title mt-4 text-[48px]">O que vai ser hoje?</h1>
+        <p className="mt-3 text-[17px] text-muted">Preencha só o que importa. O resto a gente calcula.</p>
 
-        <Section title="Qual é o" accent="momento?">
+        <Section title="Ocasião">
           <div className="flex flex-wrap gap-2">
             {OCCASIONS.map((o) => (
               <button
@@ -185,48 +148,33 @@ export function SearchForm({
                 aria-pressed={s.o === o.slug}
                 onClick={() => set({ o: s.o === o.slug ? "" : o.slug })}
               >
-                <Glyph name={o.icon} className="size-4" /> {o.short}
+                {o.short}
               </button>
             ))}
           </div>
         </Section>
 
-        <Section title="Com quem você" accent="vai?">
-          <Segmented id="party" options={PARTY_OPTIONS} value={s.p} onChange={(p) => set({ p })} />
+        <Section title="Quantas pessoas">
+          <Segmented options={PARTY_OPTIONS} value={s.p} onChange={(p) => set({ p })} />
         </Section>
 
-        <Section title="Orçamento por" accent="pessoa">
-          <Segmented id="budget" options={BUDGET_OPTIONS} value={s.b} onChange={(b) => set({ b })} />
+        <Section title="Quanto por pessoa">
+          <Segmented options={BUDGET_OPTIONS} value={s.b} onChange={(b) => set({ b })} />
         </Section>
 
-        <Section title="O que não pode" accent="faltar">
-          <div className="space-y-2">
-            <Toggle
-              icon={<Ticket className="size-[18px]" strokeWidth={1.5} />}
-              label="Sem couvert artístico"
-              hint="Só lugares que não cobram couvert"
-              on={s.nc}
-              onChange={() => set({ nc: !s.nc })}
-            />
-            <Toggle
-              icon={<MessagesSquare className="size-[18px]" strokeWidth={1.5} />}
-              label="Música ambiente · dá pra conversar"
-              hint="Tira os lugares barulhentos"
-              on={s.q}
-              onChange={() => set({ q: !s.q })}
-            />
-            <Toggle
-              icon={<Baby className="size-[18px]" strokeWidth={1.5} />}
-              label="Espaço kids"
-              hint="Bom pra ir com criança"
-              on={kids}
-              onChange={() => set({ t: kids ? s.t.filter((t) => t !== "criancas") : [...s.t, "criancas"] })}
-            />
-          </div>
+        <Section title="Não pode faltar">
+          <Toggle label="Sem couvert" hint="Só lugares que não cobram couvert artístico" on={s.nc} onChange={() => set({ nc: !s.nc })} />
+          <Toggle label="Dá pra conversar" hint="Tira os lugares barulhentos" on={s.q} onChange={() => set({ q: !s.q })} />
+          <Toggle
+            label="Espaço pra criança"
+            hint="Bom pra ir com os pequenos"
+            on={kids}
+            onChange={() => set({ t: kids ? s.t.filter((t) => t !== "criancas") : [...s.t, "criancas"] })}
+          />
         </Section>
 
         {neighborhoods.length > 1 && (
-          <Section title="Região ou" accent="bairro">
+          <Section title="Bairro">
             <div className="flex flex-wrap gap-2">
               {neighborhoods.slice(0, 14).map((n) => (
                 <button key={n} className={chip(s.n === n)} aria-pressed={s.n === n} onClick={() => set({ n: s.n === n ? "" : n })}>
@@ -238,38 +186,21 @@ export function SearchForm({
         )}
       </main>
 
-      <div aria-hidden className="dock-scrim" />
-      <div
-        className="fixed left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-[24rem] -translate-x-1/2"
-        style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex items-center gap-2">
-          {filled > 0 && (
-            <button
-              onClick={() => setS(EMPTY)}
-              aria-label={`Limpar ${filled} filtros`}
-              className="press grid size-14 shrink-0 place-items-center rounded-full border border-line bg-surface shadow-lg"
-            >
-              <RotateCcw className="size-5" strokeWidth={1.5} />
-            </button>
-          )}
-          <button
-            onClick={submit}
-            disabled={results.length === 0}
-            className="press flex h-14 flex-1 items-center justify-center gap-2 rounded-full border border-white/10 bg-[#111111]/95 text-sm font-semibold text-white shadow-2xl backdrop-blur-xl disabled:opacity-50"
-          >
-            {results.length === 0 ? (
-              "Nenhum lugar com tudo isso"
-            ) : (
-              <>
-                <span>
-                  Ver <Count value={results.length} /> {results.length === 1 ? "lugar" : "lugares"}
-                </span>
-                <ArrowRight className="size-[18px]" strokeWidth={1.5} />
-              </>
-            )}
+      <div className="fixed bottom-0 left-1/2 z-40 flex w-full max-w-md -translate-x-1/2 gap-2 bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {filled > 0 && (
+          <button onClick={() => setS(EMPTY)} className={BTN_QUIET}>
+            Limpar
           </button>
-        </div>
+        )}
+        <button onClick={submit} disabled={results.length === 0} className={`${BTN_IPE} flex-1`}>
+          {results.length === 0 ? (
+            "Nenhum lugar com tudo isso"
+          ) : (
+            <span>
+              Ver <Count value={results.length} /> {results.length === 1 ? "lugar" : "lugares"}
+            </span>
+          )}
+        </button>
       </div>
     </>
   );

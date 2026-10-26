@@ -29,24 +29,3 @@ export function CompatNumber({ value, className = "" }: { value: number; classNa
     </span>
   );
 }
-
-/** Número grande em fundo claro (página do lugar). */
-export function CompatBadge({ value, size = "md" }: { value: number; size?: "sm" | "md" | "lg" }) {
-  const num = size === "lg" ? "text-[2.75rem]" : size === "md" ? "text-[2rem]" : "text-xl";
-  return (
-    <div className="shrink-0 text-right leading-none text-match">
-      <CompatNumber value={value} className={`display block ${num}`} />
-      <span className={`block font-medium ${size === "sm" ? "mt-0.5 text-[10px]" : "mt-1 text-xs"}`}>combina com você</span>
-    </div>
-  );
-}
-
-/** Selo "96% combina" em vidro escuro, por cima da foto. A estrela do app. */
-export function CompatPill({ value }: { value: number }) {
-  return (
-    <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-black/75 px-3 py-1 text-xs font-bold text-emerald-400 backdrop-blur-md">
-      <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" aria-hidden />
-      <CompatNumber value={value} /> combina
-    </span>
-  );
-}

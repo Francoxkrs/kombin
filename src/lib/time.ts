@@ -1,5 +1,3 @@
-import { getOccasion } from "./occasions";
-
 /** Hora em Campo Grande (UTC-4, sem horário de verão). */
 function campoGrandeHour(now: number): { hour: number; weekday: number } {
   const d = new Date(now - 4 * 3_600_000);
@@ -8,7 +6,7 @@ function campoGrandeHour(now: number): { hour: number; weekday: number } {
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-export function greeting(now = Date.now()): { hello: string; moment: string; suggested: string; mood: string } {
+export function greeting(now = Date.now()): { hello: string; moment: string; suggested: string } {
   const { hour, weekday } = campoGrandeHour(now);
   // Madrugada ainda é a noite do dia anterior: 0h30 de segunda é "domingo à noite".
   const late = hour < 5;
@@ -32,6 +30,5 @@ export function greeting(now = Date.now()): { hello: string; moment: string; sug
           : weekend
             ? "pagode"
             : "happy-hour";
-  const mood = getOccasion(suggested)?.mood ?? "";
-  return { hello, moment: `${DAYS[day]} à ${part}`, suggested, mood };
+  return { hello, moment: `${DAYS[day]} à ${part}`, suggested };
 }

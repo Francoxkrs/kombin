@@ -12,11 +12,9 @@ export default async function ResetPasswordPage() {
   return (
     <Page>
       <TopBar back={{ href: "/perfil", label: "Perfil" }} right={<span />} />
-      <main className="flex-1 px-5 pt-6 pb-36">
-        <h1 className="text-4xl leading-[1.05] font-bold tracking-tight">
-          Crie uma senha <span className="accent text-[1.12em]">nova</span>
-        </h1>
-        <p className="mt-2 mb-7 text-sm text-muted">Depois disso, é só entrar com o e-mail e essa senha.</p>
+      <main className="flex-1 px-5 pt-6 pb-12">
+        <h1 className="title text-[48px]">Crie uma senha nova</h1>
+        <p className="mt-3 mb-8 text-[17px] text-muted">Depois disso, é só entrar com o e-mail e essa senha.</p>
         <NewPasswordForm />
       </main>
     </Page>

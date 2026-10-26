@@ -8,20 +8,15 @@ interface Props {
   /** Outras fotos para tentar se a primeira não carregar. */
   fallbacks?: string[];
   alt: string;
-  /** Nome do lugar (só para acessibilidade; o fundo de reserva não usa letra). */
+  /** Nome do lugar (só para acessibilidade). */
   name?: string;
-  /** Mantido por compatibilidade; o fundo de reserva usa a superfície quente do tema. */
-  color?: string;
   className?: string;
   eager?: boolean;
-  /** Classes extras da <img> (ex.: zoom no hover do card). */
+  /** Classes extras da <img>. */
   imgClassName?: string;
 }
 
-/**
- * Foto com entrada suave. Se nenhuma fonte carregar, mostra uma superfície quente
- * com um ícone fino, nunca uma letra gigante.
- */
+/** Foto com entrada suave. Se nenhuma fonte carregar, fica a superfície da noite com um ícone fino. */
 export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClassName = "" }: Props) {
   const sources = [src, ...fallbacks].filter((s): s is string => !!s);
   const [index, setIndex] = useState(0);
@@ -45,17 +40,10 @@ export function Photo({ src, fallbacks = [], alt, className = "", eager, imgClas
   }, [current]);
 
   return (
-    <div className={`${position} overflow-hidden bg-soft ${className}`}>
+    <div className={`${position} overflow-hidden bg-surface ${className}`}>
       {!current && (
-        <div
-          className="absolute inset-0 grid place-items-center"
-          style={{
-            backgroundImage:
-              "radial-gradient(120% 80% at 20% 0%, #f9f5ec 0%, transparent 60%), repeating-linear-gradient(135deg, transparent 0 14px, rgba(104,101,94,0.05) 14px 15px)",
-          }}
-          aria-hidden
-        >
-          <UtensilsCrossed className="size-6 text-muted/50" strokeWidth={1.25} />
+        <div className="absolute inset-0 grid place-items-center" aria-hidden>
+          <UtensilsCrossed className="size-6 text-muted" strokeWidth={1.25} />
         </div>
       )}
       {current && (

@@ -1,12 +1,14 @@
 "use client";
 
-import { Check, Crown, Heart, Link2, RotateCcw, X } from "lucide-react";
+import { Crown, Heart, Link2, X } from "lucide-react";
 import { AnimatePresence, motion, useMotionValue, useTransform, type PanInfo } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { DecisionOption, DecisionState } from "@/lib/decision";
+import { theWho } from "@/lib/occasions";
 import { WhatsAppIcon } from "./ui/icons";
 import { Photo } from "./ui/Photo";
+import { btn, INPUT } from "./ui/styles";
 
 const NAME_KEY = "kb_name";
 
@@ -21,13 +23,11 @@ function readName(): string {
 /** Um card do baralho: arrasta para a direita = "esse!", para a esquerda = "próximo". */
 function SwipeCard({
   option,
-  color,
   onYes,
   onNo,
   depth,
 }: {
   option: DecisionOption;
-  color: string;
   onYes: () => void;
   onNo: () => void;
   depth: number;
@@ -44,7 +44,7 @@ function SwipeCard({
 
   return (
     <motion.div
-      className="absolute inset-0 cursor-grab touch-pan-y overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,0.55)] active:cursor-grabbing"
+      className="absolute inset-0 cursor-grab touch-pan-y overflow-hidden bg-surface active:cursor-grabbing"
       style={{ x, rotate, zIndex: 10 - depth }}
       initial={{ scale: 0.92, y: 24, opacity: 0 }}
       animate={{ scale: 1 - depth * 0.05, y: depth * 14, opacity: depth > 2 ? 0 : 1 }}
@@ -54,37 +54,30 @@ function SwipeCard({
       dragSnapToOrigin
       onDragEnd={onDragEnd}
     >
-      <Photo src={option.photo} alt={`Foto de ${option.name}`} name={option.name} color={color} className="absolute inset-0" eager />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+      <Photo src={option.photo} alt={`Foto de ${option.name}`} name={option.name} className="absolute inset-0" eager />
+      <div className="scrim-bottom absolute inset-x-0 bottom-0 h-3/4" />
       <motion.span
         style={{ opacity: yes }}
-        className="absolute top-6 left-5 -rotate-12 rounded-xl border-4 border-[#3ddc84] px-3 py-1 text-2xl font-black text-[#3ddc84] uppercase"
+        className="title absolute top-6 left-5 -rotate-12 rounded-2xl border-4 border-ipe px-4 py-2 text-[34px] text-ipe"
       >
         Esse!
       </motion.span>
       <motion.span
         style={{ opacity: no }}
-        className="absolute top-6 right-5 rotate-12 rounded-xl border-4 border-white px-3 py-1 text-2xl font-black text-white uppercase"
+        className="title absolute top-6 right-5 rotate-12 rounded-2xl border-4 border-foreground px-4 py-2 text-[34px] text-foreground"
       >
         Próximo
       </motion.span>
-      <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="display text-[2rem]">{option.name}</p>
-            <p className="mt-1 truncate text-white/80">{option.subtitle}</p>
-          </div>
-          {option.compat != null && (
-            <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-match">{option.compat}%</span>
-          )}
-        </div>
-        <ul className="mt-3 space-y-1 text-sm text-white/90">
-          {option.reasons.map((r) => (
-            <li key={r} className="flex items-center gap-1.5">
-              <Check className="size-3.5 text-emerald-400" strokeWidth={2} /> {r}
-            </li>
-          ))}
-        </ul>
+      <div className="absolute inset-x-0 bottom-0 p-5">
+        {option.compat != null && (
+          <p className="text-[15px] font-medium">
+            <span className="text-ipe">{option.compat}%</span> combina
+          </p>
+        )}
+        <p className="title mt-1 text-[40px] break-words">{option.name}</p>
+        <p className="mt-2 text-[15px] leading-snug text-foreground/90">
+          {[option.subtitle, ...option.reasons].filter(Boolean).join(". ")}.
+        </p>
       </div>
     </motion.div>
   );
@@ -105,7 +98,6 @@ export function VoteBoard({
   const [voting, setVoting] = useState(!initial.myVote && !isNew);
   const [copied, setCopied] = useState(false);
   const { occasion } = state;
-  const color = occasion.slug === "tudo" ? "#0b0b0c" : occasion.color;
 
   useEffect(() => {
     if (nameRef.current) nameRef.current.value = readName();
@@ -162,39 +154,25 @@ export function VoteBoard({
   return (
     <div className="space-y-6">
       {isNew && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-[1.75rem] p-5 text-white"
-          style={{ background: color }}
-        >
-          <p className="text-xl font-bold">Agora é com {occasion.decideWho === "mozão" ? "o mozão" : `a ${occasion.decideWho}`}.</p>
-          <p className="mt-1 text-sm text-white/85">
-            Quem receber o link vota arrastando os cards, sem baixar nada. O resultado aparece aqui ao vivo.
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <p className="text-[20px] leading-snug font-medium">
+            Agora é com {theWho(occasion.decideWho)}. Quem receber o link vota arrastando as
+            fotos, sem baixar nada, e o resultado aparece aqui na hora.
           </p>
-          <div className="mt-4 flex gap-2">
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
-              className="press flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-3.5 text-[0.95rem] font-bold whitespace-nowrap"
-              style={{ color }}
-            >
+          <div className="mt-5 flex gap-2">
+            <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} className={`${btn("ipe", "tight")} flex-1`}>
               <WhatsAppIcon /> Mandar no WhatsApp
             </a>
-            <button onClick={copy} className="press flex shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-white/50 px-4 py-3.5 font-bold">
-              <Link2 className="size-4" strokeWidth={1.5} /> {copied ? "Copiado!" : "Link"}
+            <button onClick={copy} className={btn("quiet", "tight")}>
+              <Link2 className="size-5" strokeWidth={2} /> {copied ? "Copiado" : "Link"}
             </button>
           </div>
-        </motion.div>
+        </motion.section>
       )}
 
       <label className="block">
-        <span className="text-sm font-semibold text-muted">Seu nome (aparece no voto)</span>
-        <input
-          ref={nameRef}
-          placeholder="Ex.: Ana"
-          maxLength={30}
-          className="mt-1.5 w-full rounded-2xl border border-line bg-soft px-4 py-3.5 outline-none transition focus:border-foreground focus:bg-white"
-        />
+        <span className="text-[15px] text-muted">Seu nome (aparece no voto)</span>
+        <input ref={nameRef} placeholder="Ex.: Ana" maxLength={30} className={`${INPUT} mt-2`} />
       </label>
 
       {voting ? (
@@ -205,7 +183,6 @@ export function VoteBoard({
                 <SwipeCard
                   key={o.id}
                   option={o}
-                  color={color}
                   depth={i}
                   onYes={() => vote(o.id)}
                   onNo={() => setDeck((d) => (d.length > 1 ? [...d.slice(1), d[0]] : d))}
@@ -218,31 +195,30 @@ export function VoteBoard({
               <button
                 onClick={() => setDeck((d) => (d.length > 1 ? [...d.slice(1), d[0]] : d))}
                 aria-label="Próximo"
-                className="press grid size-16 place-items-center rounded-full border border-line bg-white shadow-lg"
+                className="press grid size-16 place-items-center rounded-full bg-surface"
               >
-                <X className="size-7" strokeWidth={2.6} />
+                <X className="size-7" strokeWidth={2.2} />
               </button>
               <button
                 onClick={() => vote(cards[0].id)}
                 aria-label={`Votar em ${cards[0].name}`}
-                className="press grid size-20 place-items-center rounded-full text-white shadow-xl"
-                style={{ background: color }}
+                className="press grid size-20 place-items-center rounded-full bg-ipe text-on-ipe"
               >
-                <Heart className="size-9 fill-white" strokeWidth={0} />
+                <Heart className="size-9 fill-current" strokeWidth={0} />
               </button>
             </div>
           )}
-          <p className="mt-3 text-center text-sm text-muted">Arraste para a direita no que você quer.</p>
+          <p className="mt-4 text-center text-[15px] text-muted">Arraste pra direita no que você quer.</p>
         </div>
       ) : (
         <section>
           <div className="flex items-end justify-between">
-            <h2 className="text-[1.3rem] font-bold tracking-[-0.03em]">Resultado ao vivo</h2>
-            <span className="text-sm text-muted">
+            <h2 className="title text-[32px]">Resultado</h2>
+            <span className="text-[15px] text-muted">
               {state.totalVotes} {state.totalVotes === 1 ? "voto" : "votos"}
             </span>
           </div>
-          <ol className="mt-3 space-y-3">
+          <ol className="mt-4 space-y-1">
             {sorted.map((o) => {
               const pct = state.totalVotes ? Math.round((o.votes / state.totalVotes) * 100) : 0;
               const mine = state.myVote === o.id;
@@ -251,45 +227,39 @@ export function VoteBoard({
                 <motion.li
                   layout
                   key={o.id}
-                  className="relative overflow-hidden rounded-[1.4rem] border border-line bg-white p-3"
-                  style={mine ? { boxShadow: `0 0 0 2.5px ${color}` } : undefined}
+                  className="relative overflow-hidden bg-surface"
                 >
                   <motion.div
-                    className="absolute inset-y-0 left-0 opacity-[0.12]"
-                    style={{ background: color }}
+                    className="absolute inset-y-0 left-0 bg-ipe/20"
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
                     transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                   />
-                  <div className="relative flex items-center gap-3">
-                    <Photo src={o.photo} alt="" name={o.name} color={color} className="size-16 shrink-0 rounded-2xl" />
+                  <div className="relative flex items-center gap-4 pr-4">
+                    <Photo src={o.photo} alt="" name={o.name} className="size-[72px] shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-[1.05rem] font-bold">
-                        {lead && <Crown className="size-4 shrink-0 text-amber-500" strokeWidth={2.6} />}
+                      <p className="flex items-center gap-1.5 truncate text-[18px] font-semibold">
+                        {lead && <Crown className="size-4 shrink-0 text-ipe" strokeWidth={2.4} />}
                         {o.name}
                       </p>
-                      <p className="truncate text-xs text-muted">
-                        {o.voters.length > 0 ? o.voters.join(", ") : o.subtitle}
-                        {mine ? " · seu voto" : ""}
+                      <p className="truncate text-[14px] text-muted">
+                        {mine ? "Seu voto" : o.voters.length > 0 ? o.voters.join(", ") : o.subtitle}
+                        {mine && o.voters.length > 1 ? `, ${o.voters.length - 1} mais` : ""}
                       </p>
                     </div>
-                    <span className="display text-2xl">{pct}%</span>
+                    <span className="title text-[32px] tabular-nums">{pct}%</span>
                   </div>
                 </motion.li>
               );
             })}
           </ol>
           <div className="mt-4 flex gap-2">
-            <button onClick={startVoting} className="press flex flex-1 items-center justify-center gap-2 rounded-2xl border border-line py-3.5 font-bold">
-              <RotateCcw className="size-4" strokeWidth={1.5} /> {state.myVote ? "Mudar voto" : "Votar"}
+            <button onClick={startVoting} className={`${btn("quiet", "tight")} flex-1`}>
+              {state.myVote ? "Mudar voto" : "Votar"}
             </button>
             {leader && (
-              <Link
-                href={`/l/${leader.id}?o=${occasion.slug}`}
-                className="press flex flex-1 items-center justify-center rounded-2xl py-3.5 font-bold text-white"
-                style={{ background: color }}
-              >
-                Reservar {leader.name.split(" ")[0]}
+              <Link href={`/l/${leader.id}?o=${occasion.slug}`} className={`${btn("ipe", "tight")} flex-1`}>
+                Ver {leader.name.split(" ")[0]}
               </Link>
             )}
           </div>

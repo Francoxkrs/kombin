@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Lugares que combinam com você.",
     start_url: "/",
     display: "standalone",
-    background_color: "#fbf9f5",
-    theme_color: "#fbf9f5",
+    background_color: "#2a1b12",
+    theme_color: "#2a1b12",
     lang: "pt-BR",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },

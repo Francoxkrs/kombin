@@ -17,7 +17,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
 
   return (
     <Page>
-      <TopBar back={{ href: back, label: one("o") ? "Resultados" : "Descobrir" }} right={<span />} />
+      <TopBar back={{ href: back, label: one("o") ? "Lista" : "Descobrir" }} right={<span />} />
       <SearchForm
         places={places}
         signals={[...signals]}

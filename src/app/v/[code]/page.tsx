@@ -32,18 +32,14 @@ export default async function VotePage({ params, searchParams }: PageProps<"/v/[
     <Page>
       <TopBar />
       <main className="flex-1 px-5 pb-14">
-        <p className="rise mt-2 flex items-center gap-1.5 text-sm font-bold" style={{ color: state.occasion.color }}>
-          {state.occasion.name}
-        </p>
-        <h1 className="rise display mt-1 mb-6 text-[2.6rem]" style={{ "--i": 1 } as React.CSSProperties}>
-          {isNew ? "Votação criada" : "Qual vai ser?"}
-        </h1>
+        <p className="mt-3 text-[17px] text-muted">{state.occasion.name}</p>
+        <h1 className="title mt-1 mb-6 text-[56px]">{isNew ? "Votação criada" : "Qual vai ser?"}</h1>
         <VoteBoard initial={state} isNew={isNew} shareUrl={shareUrl} />
-        <Link href="/" className="press mt-12 flex items-center gap-3 rounded-[1.5rem] bg-soft p-4">
-          <LogoMark size={40} />
-          <span className="text-sm">
-            <b className="block">Kombin</b>
-            <span className="text-muted">Ache o lugar certo pra próxima saída em Campo Grande.</span>
+        <Link href="/" className="press mt-14 flex items-center gap-4">
+          <LogoMark size={44} />
+          <span className="text-[15px] leading-snug">
+            <b className="block text-[17px] font-semibold">Kombin</b>
+            <span className="text-muted">O lugar certo pra próxima saída em Campo Grande.</span>
           </span>
         </Link>
       </main>

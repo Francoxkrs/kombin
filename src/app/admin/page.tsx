@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Page } from "@/components/ui/Page";
+import { BTN_IPE, BTN_LIGHT, chip } from "@/components/ui/styles";
 import { TopBar } from "@/components/ui/TopBar";
 import { requireAdmin } from "@/lib/auth";
 import { cuisineLabel } from "@/lib/cuisines";
@@ -39,25 +40,25 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     <Page>
       <TopBar back={{ href: "/perfil", label: "Você" }} />
       <main className="px-5 pt-2 pb-12">
-        <h1 className="display text-[2.4rem]">Admin</h1>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-[1.3rem] bg-soft p-4">
-            <p className="display text-[2rem]">{totalWhats}</p>
-            <p className="text-xs text-muted">cliques em WhatsApp (30 dias)</p>
+        <h1 className="title text-[48px]">Admin</h1>
+        <dl className="mt-5 grid grid-cols-2 gap-4">
+          <div className="flex flex-col-reverse">
+            <dt className="mt-1 text-[15px] text-muted">cliques em WhatsApp (30 dias)</dt>
+            <dd className="title text-[44px] tabular-nums">{totalWhats}</dd>
           </div>
-          <div className="rounded-[1.3rem] bg-soft p-4">
-            <p className="display text-[2rem]">{totalDir}</p>
-            <p className="text-xs text-muted">cliques em Como chegar (30 dias)</p>
+          <div className="flex flex-col-reverse">
+            <dt className="mt-1 text-[15px] text-muted">cliques em Como chegar (30 dias)</dt>
+            <dd className="title text-[44px] tabular-nums">{totalDir}</dd>
           </div>
-        </div>
+        </dl>
 
-        <nav className="no-scrollbar -mx-5 mt-6 flex gap-2 overflow-x-auto px-5">
+        <nav className="no-scrollbar -mx-5 mt-7 flex gap-2 overflow-x-auto px-5">
           {TABS.map((t) => (
             <Link
               key={t.key}
               href={`/admin?s=${t.key}`}
               replace
-              className={`press shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${t.key === tab ? "border-foreground bg-foreground text-white" : "border-line bg-white"}`}
+              className={chip(t.key === tab)}
             >
               {t.label}
             </Link>
@@ -83,13 +84,13 @@ async function Import() {
   return (
     <>
       {demo > 0 && (
-        <form action={removeDemoPlaces} className="mb-4 rounded-[1.5rem] border border-amber-300 bg-amber-50 p-4">
-          <p className="font-bold">Há {demo} lugares fictícios no banco</p>
-          <p className="mt-1 text-sm text-ink-2">
+        <form action={removeDemoPlaces} className="mb-5 rounded-2xl bg-surface p-5">
+          <p className="text-[18px] font-semibold text-ipe">Há {demo} lugares fictícios no banco</p>
+          <p className="mt-1 text-[15px] leading-snug text-ink-2">
             São os lugares de teste (Adega Lume, Varanda do Samba...), sem foto e com WhatsApp falso. Apague antes de
             divulgar o app.
           </p>
-          <button className="press mt-3 w-full rounded-xl bg-foreground py-3 font-bold text-white">
+          <button className={`${BTN_LIGHT} mt-4 w-full`}>
             Apagar lugares fictícios
           </button>
         </form>
@@ -107,13 +108,13 @@ async function Import() {
 
 function NewPlace() {
   return (
-    <form action={createPlace} className="space-y-3 rounded-[1.5rem] border border-line p-4">
-      <p className="font-semibold">Cadastrar lugar à mão</p>
-      <p className="text-sm text-muted">
+    <form action={createPlace} className="space-y-4 rounded-2xl bg-surface p-5">
+      <p className="text-[18px] font-semibold">Cadastrar lugar à mão</p>
+      <p className="text-[15px] leading-snug text-muted">
         Entra direto como aprovado. Dê nota de vibe só para as ocasiões em que ele deve aparecer.
       </p>
       <PlaceFields />
-      <button className="press w-full rounded-xl bg-foreground py-3 font-bold text-white">Cadastrar</button>
+      <button className={`${BTN_IPE} w-full`}>Cadastrar</button>
     </form>
   );
 }
@@ -124,13 +125,13 @@ async function Claims() {
   return (
     <ul className="space-y-3">
       {claims.map((c) => (
-        <li key={c.id} className="rounded-[1.5rem] border border-line p-4 text-sm">
-          <p className="text-base font-bold">{c.placeName}</p>
+        <li key={c.id} className="rounded-2xl bg-surface p-5 text-[15px]">
+          <p className="text-[18px] font-semibold">{c.placeName}</p>
           <p>
-            {c.userName ?? "Sem nome"} · <b>{c.contact}</b>
+            {c.userName ?? "Sem nome"}, <b className="font-semibold">{c.contact}</b>
           </p>
           {c.message && <p className="mt-1 text-muted">“{c.message}”</p>}
-          <p className="mt-1 text-xs text-muted">Confirme pelo contato antes de aprovar.</p>
+          <p className="mt-1 text-[14px] text-muted">Confirme pelo contato antes de aprovar.</p>
           <div className="mt-3 flex gap-2">
             {[
               { v: "1", label: "Aprovar" },
@@ -139,7 +140,7 @@ async function Claims() {
               <form key={b.v} action={resolveClaim}>
                 <input type="hidden" name="id" value={c.id} />
                 <input type="hidden" name="approve" value={b.v} />
-                <button className="press rounded-xl border border-line px-3 py-2 font-semibold">{b.label}</button>
+                <button className={chip(b.v === "1", true)}>{b.label}</button>
               </form>
             ))}
           </div>
@@ -167,35 +168,35 @@ async function PlaceList({
         const l = leads.get(p.id);
         const s = signals.get(p.id);
         return (
-          <li key={p.id} className="rounded-[1.5rem] border border-line p-4 text-sm">
+          <li key={p.id} className="rounded-2xl bg-surface p-5 text-[15px]">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-base font-bold">{p.name}</p>
+                <p className="text-[18px] font-semibold">{p.name}</p>
                 <p className="text-muted">
-                  {[p.cuisines.map(cuisineLabel).join(", ") || p.category, p.neighborhood].filter(Boolean).join(" · ")}
+                  {[p.cuisines.map(cuisineLabel).join(", ") || p.category, p.neighborhood].filter(Boolean).join(", ")}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-xs text-muted">
-                {l ? `${l.whatsapp} WhatsApp · ${l.directions} rota` : "sem cliques"}
+              <p className="shrink-0 text-right text-[13px] text-muted">
+                {l ? `${l.whatsapp} WhatsApp, ${l.directions} rota` : "sem cliques"}
                 <br />
                 {s?.reviews ?? 0} avaliações
               </p>
             </div>
-            {p.aiSummary && <p className="mt-2 italic">“{p.aiSummary}”</p>}
+            {p.aiSummary && <p className="mt-2 text-ink-2">{p.aiSummary}</p>}
             <div className="mt-2 flex flex-wrap gap-1">
               {OCCASIONS.map((o) => (
-                <span key={o.slug} className="rounded-full bg-soft px-2 py-0.5 text-xs">
+                <span key={o.slug} className="rounded-full bg-soft px-2.5 py-1 text-[13px]">
                   {o.slug}: <b>{p.vibe[o.slug]?.toFixed(1) ?? "–"}</b>
                 </span>
               ))}
             </div>
 
             <details className="mt-3">
-              <summary className="cursor-pointer text-muted">Editar</summary>
+              <summary className="flex h-11 cursor-pointer items-center text-muted">Editar</summary>
               <form action={saveDetails} className="mt-3 space-y-2">
                 <input type="hidden" name="id" value={p.id} />
                 <PlaceFields place={p} />
-                <button className="press w-full rounded-xl bg-foreground py-2.5 font-bold text-white">Salvar</button>
+                <button className={`${BTN_IPE} w-full`}>Salvar</button>
               </form>
             </details>
 
@@ -204,7 +205,7 @@ async function PlaceList({
                 <form key={st} action={setStatus}>
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="status" value={st} />
-                  <button className="press rounded-xl border border-line px-3 py-2 font-semibold">
+                  <button className={chip(st === "approved", true)}>
                     {st === "approved" ? "Aprovar" : st === "rejected" ? "Rejeitar" : "Voltar p/ revisão"}
                   </button>
                 </form>

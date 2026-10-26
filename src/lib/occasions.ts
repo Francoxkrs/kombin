@@ -1,7 +1,3 @@
-import type { GlyphName } from "./glyphs";
-
-const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=70`;
-
 /**
  * Ocasiões do Kombin e os pesos que cada uma dá aos critérios do índice.
  * Mudar um peso aqui muda o ranking na hora, sem migração de banco.
@@ -25,16 +21,10 @@ export interface OccasionWeights {
 export interface Occasion {
   slug: string;
   name: string;
-  /** Nome curto para chips. */
+  /** Nome curto das abas e dos filtros. */
   short: string;
-  /** Ícone (src/components/ui/Glyph.tsx). */
-  icon: GlyphName;
-  /** Nome em duas partes: a segunda vai em serifa itálica ("A dois," + "pra conversar"). */
-  display: [string, string];
-  /** Frase da saudação quando esta é a ocasião do momento. */
-  mood: string;
-  /** Fotos de ambiente do card da ocasião (a primeira que carregar). */
-  images: string[];
+  /** Fim da frase "92% combina com ...". */
+  target: string;
   /** Etiquetas que contam a favor nesta ocasião (src/lib/tags.ts). */
   wantTags: string[];
   tagline: string;
@@ -42,7 +32,6 @@ export interface Occasion {
   decideLabel: string;
   /** Quem recebe o link: aparece na mensagem do WhatsApp. */
   decideWho: string;
-  color: string;
   defaultParty: "2" | "3-5" | "6+";
   weights: OccasionWeights;
 }
@@ -50,17 +39,13 @@ export interface Occasion {
 export const OCCASIONS: Occasion[] = [
   {
     slug: "encontro",
+    target: "noite a dois",
     short: "A dois",
-    icon: "wine",
-    display: ["A dois,", "pra conversar"],
-    mood: "Clima perfeito para um jantar tranquilo",
-    images: [unsplash("photo-1510812431401-41d2bd2722f3"), unsplash("photo-1559339352-11d035aa65de"), unsplash("photo-1414235077428-338989a2e8c0")],
     wantTags: ["vinhos", "reserva", "drinks"],
     name: "A dois, pra conversar",
     tagline: "Luz baixa, sem couvert, mesa que dá pra ouvir o outro.",
     decideLabel: "Decidir com o mozão",
     decideWho: "mozão",
-    color: "#7a1f3d",
     defaultParty: "2",
     weights: {
       vibe: 4,
@@ -72,17 +57,13 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "pagode",
+    target: "pagode e porção",
     short: "Pagode",
-    icon: "music",
-    display: ["Pagode e", "porção"],
-    mood: "Noite boa pra samba e mesa cheia",
-    images: [unsplash("photo-1514933651103-005eec06c04b"), unsplash("photo-1516450360452-9312f5e86fc7"), unsplash("photo-1429962714451-bb934ecdc4ec")],
     wantTags: ["musica-ao-vivo", "chopp", "grupos", "area-externa"],
     name: "Pagode e porção",
     tagline: "Música ao vivo, mesa grande e porção pra dividir.",
     decideLabel: "Decidir com a galera",
     decideWho: "galera",
-    color: "#d9541e",
     defaultParty: "6+",
     weights: {
       vibe: 3,
@@ -94,17 +75,13 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "familia",
+    target: "almoço em família",
     short: "Família",
-    icon: "baby",
-    display: ["Família com", "criança"],
-    mood: "Dia bom pra almoçar com a família",
-    images: [unsplash("photo-1543353071-873f17a7a088"), unsplash("photo-1555396273-367ea4eb4db5"), unsplash("photo-1504674900247-0877df9cc836")],
     wantTags: ["criancas", "grupos", "estacionamento"],
     name: "Família com criança",
     tagline: "Espaço, cardápio fácil e ninguém olhando torto pro barulho.",
     decideLabel: "Decidir com a família",
     decideWho: "família",
-    color: "#2f7d4f",
     defaultParty: "3-5",
     weights: {
       vibe: 3,
@@ -116,17 +93,13 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "happy-hour",
+    target: "happy hour",
     short: "Happy hour",
-    icon: "beer",
-    display: ["Happy hour", "do trampo"],
-    mood: "Hora de um chopp depois do expediente",
-    images: [unsplash("photo-1528605248644-14dd04022da1"), unsplash("photo-1436076863939-06870fe779c2"), unsplash("photo-1470337458703-46ad1756a187")],
     wantTags: ["chopp", "drinks", "grupos", "area-externa"],
     name: "Happy hour do trampo",
     tagline: "Chopp gelado, petisco e saída fácil depois do expediente.",
     decideLabel: "Decidir com o time",
     decideWho: "time",
-    color: "#b7790f",
     defaultParty: "3-5",
     weights: {
       vibe: 3,
@@ -138,17 +111,13 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "aniversario",
+    target: "aniversário da galera",
     short: "Aniversário",
-    icon: "party",
-    display: ["Aniversário", "da galera"],
-    mood: "Bom dia pra juntar a galera",
-    images: [unsplash("photo-1530103862676-de8c9debad1d"), unsplash("photo-1511795409834-ef04bbd61622"), unsplash("photo-1492684223066-81342ee5ff30")],
     wantTags: ["grupos", "reserva", "drinks"],
     name: "Aniversário da galera",
     tagline: "Mesa pra muita gente, clima de festa e conta que não assusta.",
     decideLabel: "Decidir com a galera",
     decideWho: "galera",
-    color: "#6d3fc0",
     defaultParty: "6+",
     weights: {
       vibe: 3,
@@ -159,17 +128,13 @@ export const OCCASIONS: Occasion[] = [
   },
   {
     slug: "cafe",
+    target: "café sem pressa",
     short: "Café",
-    icon: "coffee",
-    display: ["Café pra", "estudar"],
-    mood: "Hora de um café sem pressa",
-    images: [unsplash("photo-1501339847302-ac426a4a7cbb"), unsplash("photo-1495474472287-4d71bcdd2085"), unsplash("photo-1554118811-1e0d58224f24")],
     wantTags: ["cafe", "sobremesa"],
     name: "Café pra estudar",
     tagline: "Tomada, wi-fi, silêncio e um café que vale a pena.",
     decideLabel: "Decidir com a dupla",
     decideWho: "dupla",
-    color: "#6b4a32",
     defaultParty: "2",
     weights: {
       vibe: 3,
@@ -184,20 +149,28 @@ export const OCCASIONS: Occasion[] = [
 /** "Qualquer ocasião": usado pela busca quando a pessoa não escolhe uma. Vale a melhor nota de vibe. */
 export const ANY_OCCASION: Occasion = {
   slug: "tudo",
+  target: "o seu momento",
   name: "Para o seu momento",
   short: "Qualquer",
-  icon: "sparkles",
-  display: ["Para o seu", "momento"],
-  mood: "Lugares que combinam com você",
-  images: [unsplash("photo-1517248135467-4c7edcad34c4"), unsplash("photo-1552566626-52f8b828add9")],
   wantTags: [],
   tagline: "Os lugares de Campo Grande que mais combinam com o que você escolheu.",
   decideLabel: "Decidir com a galera",
   decideWho: "galera",
-  color: "#0b0b0c",
   defaultParty: "3-5",
   weights: { vibe: 2.5, price: 2, distance: 1.5 },
 };
+
+const MASCULINE = new Set(["mozão", "time"]);
+
+/** "o mozão", "a galera". */
+export function theWho(who: string): string {
+  return `${MASCULINE.has(who) ? "o" : "a"} ${who}`;
+}
+
+/** "pro mozão", "pra galera". */
+export function forWho(who: string): string {
+  return `${MASCULINE.has(who) ? "pro" : "pra"} ${who}`;
+}
 
 export function getOccasion(slug: string): Occasion | undefined {
   if (slug === ANY_OCCASION.slug) return ANY_OCCASION;
@@ -212,9 +185,9 @@ export function vibeFor(vibe: Record<string, number>, occasion: Occasion): numbe
 }
 
 export const PARTY_OPTIONS = [
-  { value: "2", label: "A dois" },
-  { value: "3-5", label: "3 a 5 pessoas" },
-  { value: "6+", label: "Grupo 6+" },
+  { value: "2", label: "Duas" },
+  { value: "3-5", label: "3 a 5" },
+  { value: "6+", label: "6 ou mais" },
 ] as const;
 export type Party = (typeof PARTY_OPTIONS)[number]["value"];
 
@@ -227,9 +200,9 @@ export const SPEND_LABELS: Record<number, string> = {
 
 /** Faixas que a busca oferece (a 3ª cobre "R$ 100+"). */
 export const BUDGET_OPTIONS = [
-  { value: "1", label: "Até R$ 50" },
-  { value: "2", label: "R$ 50–100" },
-  { value: "3", label: "R$ 100+" },
+  { value: "1", label: "Até R$\u00a050" },
+  { value: "2", label: "R$\u00a050 a 100" },
+  { value: "3", label: "R$\u00a0100+" },
 ] as const;
 
 /** Valor típico por pessoa de cada faixa, para o "~R$ 75/pessoa" dos cards. */

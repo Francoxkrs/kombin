@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, CircleAlert, Download, Loader2, Plus, Search, Sparkles } from "lucide-react";
+import { Check, CircleAlert, Loader2, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useTransition } from "react";
+import { BTN_IPE, BTN_LIGHT, chip } from "@/components/ui/styles";
 import { importEssential, importGooglePlace, importQuery, searchGoogle, visionNext, type GoogleHit } from "./import-actions";
 
 interface LogLine {
@@ -133,8 +134,8 @@ export function ImportPanel({
 
   if (!hasGoogleKey) {
     return (
-      <div className="rounded-[1.5rem] border border-amber-300 bg-amber-50 p-5 text-sm">
-        <p className="text-base font-bold">Falta a chave do Google</p>
+      <div className="rounded-2xl bg-surface p-5 text-[15px]">
+        <p className="text-[18px] font-semibold text-ipe">Falta a chave do Google</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-ink-2">
           <li>No Google Cloud, ative a <b>Places API (New)</b> e crie uma chave de API.</li>
           <li>Crie um alerta de orçamento de US$ 1 (a cota grátis cobre a importação).</li>
@@ -148,23 +149,21 @@ export function ImportPanel({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[1.5rem] bg-foreground p-5 text-white">
-        <p className="flex items-center gap-2 text-lg font-bold">
-          <Download className="size-5" /> Importar restaurantes de Campo Grande
-        </p>
-        <p className="mt-1 text-sm text-white/70">
+      <section className="rounded-2xl bg-surface p-5">
+        <p className="title text-[28px]">Importar restaurantes de Campo Grande</p>
+        <p className="mt-2 text-[15px] leading-snug text-muted">
           Primeiro as {essentials.length} casas essenciais pelo nome ({essentials.slice(0, 3).join(", ")}…), depois{" "}
           {queries.length} buscas (pizzarias, japoneses, bares com música…). Nas buscas entram só lugares abertos, com nota
           4,2+ e 150+ avaliações no Google. Usa cerca de {essentials.length + queries.length} das 1.000 chamadas grátis do
           mês.
         </p>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
-          <motion.div className="h-full rounded-full bg-[#3ddc84]" animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.4 }} />
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-soft">
+          <motion.div className="h-full rounded-full bg-ipe" animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.4 }} />
         </div>
         <button
           onClick={runImport}
           disabled={running !== null}
-          className="press mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 font-bold text-foreground disabled:opacity-60"
+          className={`${BTN_IPE} mt-4 w-full`}
         >
           {running === "import" ? (
             <>
@@ -180,11 +179,9 @@ export function ImportPanel({
         </button>
       </section>
 
-      <section className="rounded-[1.5rem] border border-line p-5">
-        <p className="flex items-center gap-2 font-bold">
-          <Sparkles className="size-5" /> Refinar com IA de visão (opcional)
-        </p>
-        <p className="mt-1 text-sm text-muted">
+      <section className="rounded-2xl bg-surface p-5">
+        <p className="text-[18px] font-semibold">Refinar com IA de visão (opcional)</p>
+        <p className="mt-1 text-[15px] leading-snug text-muted">
           A importação já dá notas por ocasião a partir dos dados do Google. A IA olha 3 fotos de cada lugar e ajusta as
           notas pelo ambiente. {queue} {queue === 1 ? "lugar" : "lugares"} na fila.
         </p>
@@ -192,49 +189,49 @@ export function ImportPanel({
           <button
             onClick={runVision}
             disabled={running !== null || queue === 0}
-            className="press mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-line py-3 font-bold disabled:opacity-50"
+            className={`${BTN_LIGHT} mt-4 w-full`}
           >
-            {running === "vision" ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+            {running === "vision" && <Loader2 className="size-5 animate-spin" />}
             {running === "vision" ? `Analisando… ${queue} na fila` : "Analisar fotos"}
           </button>
         ) : (
-          <p className="mt-3 rounded-xl bg-soft p-3 text-sm">
+          <p className="mt-3 rounded-xl bg-soft p-3 text-[15px]">
             Para ligar: crie uma chave grátis em aistudio.google.com e cadastre <code>GEMINI_API_KEY</code> na Vercel.
           </p>
         )}
       </section>
 
-      <section className="rounded-[1.5rem] border border-line p-5">
-        <p className="font-bold">Adicionar um lugar específico</p>
+      <section className="rounded-2xl bg-surface p-5">
+        <p className="text-[18px] font-semibold">Adicionar um lugar específico</p>
         <form onSubmit={search} className="mt-3 flex gap-2">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Ex.: Coco Bambu"
-            className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-3 outline-none focus:border-foreground focus:bg-white"
+            className="h-12 min-w-0 flex-1 rounded-xl bg-soft px-3 text-[16px] outline-none placeholder:text-muted focus:ring-2 focus:ring-ipe"
           />
-          <button className="press grid w-12 place-items-center rounded-xl bg-foreground text-white" aria-label="Buscar no Google">
+          <button className="press grid w-12 place-items-center rounded-full bg-foreground text-background" aria-label="Buscar no Google">
             {searching ? <Loader2 className="size-5 animate-spin" /> : <Search className="size-5" />}
           </button>
         </form>
         {hits && (
-          <ul className="mt-3 divide-y divide-line">
-            {hits.length === 0 && <li className="py-3 text-sm text-muted">Nada encontrado em Campo Grande.</li>}
+          <ul className="mt-3">
+            {hits.length === 0 && <li className="py-3 text-[15px] text-muted">Nada encontrado em Campo Grande.</li>}
             {hits.map((h) => (
               <li key={h.id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{h.name}</p>
-                  <p className="truncate text-xs text-muted">
-                    {h.rating ? `nota ${h.rating.toFixed(1).replace(".", ",")} (${h.reviews}) · ` : ""}
+                  <p className="truncate font-semibold">{h.name}</p>
+                  <p className="truncate text-[13px] text-muted">
+                    {h.rating ? `nota ${h.rating.toFixed(1).replace(".", ",")} (${h.reviews}), ` : ""}
                     {h.address}
                   </p>
                 </div>
                 {h.known ? (
-                  <span className="flex items-center gap-1 text-sm font-semibold text-match">
+                  <span className="flex items-center gap-1 text-[15px] font-semibold text-ipe">
                     <Check className="size-4" /> No Kombin
                   </span>
                 ) : (
-                  <button onClick={() => add(h)} disabled={adding !== null} className="press flex items-center gap-1 rounded-xl border border-line px-3 py-2 text-sm font-bold">
+                  <button onClick={() => add(h)} disabled={adding !== null} className={chip(false, true)}>
                     {adding === h.id ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Adicionar
                   </button>
                 )}
@@ -245,10 +242,10 @@ export function ImportPanel({
       </section>
 
       {log.length > 0 && (
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-1.5 text-[15px]">
           {log.map((l, i) => (
-            <li key={`${i}-${l.text}`} className={`flex gap-2 ${l.kind === "error" ? "text-red-700" : l.kind === "ok" ? "" : "text-muted"}`}>
-              {l.kind === "error" ? <CircleAlert className="mt-0.5 size-4 shrink-0" /> : <Check className="mt-0.5 size-4 shrink-0 text-match" />}
+            <li key={`${i}-${l.text}`} className={`flex gap-2 ${l.kind === "error" ? "text-danger" : l.kind === "ok" ? "" : "text-muted"}`}>
+              {l.kind === "error" ? <CircleAlert className="mt-0.5 size-4 shrink-0" /> : <Check className="mt-0.5 size-4 shrink-0 text-ipe" />}
               {l.text}
             </li>
           ))}

@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { PENDING_REVIEW_COOKIE, REVIEWED_COOKIE } from "@/lib/device-cookie";
-import { getOccasion } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import { MicroReview } from "./MicroReview";
 
@@ -39,6 +38,5 @@ export async function ReviewPrompt() {
 
   const place = await repo.getPlace(pending.p);
   if (!place) return null;
-  const color = (pending.o && getOccasion(pending.o)?.color) || undefined;
-  return <MicroReview placeId={place.id} placeName={place.name} occasion={pending.o} color={color} />;
+  return <MicroReview placeId={place.id} placeName={place.name} occasion={pending.o} />;
 }

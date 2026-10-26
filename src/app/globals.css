@@ -1,20 +1,21 @@
 @import "tailwindcss";
 
-/* Warm Editorial & Obsidian */
+/*
+ * Tela cheia: a foto do lugar ocupa a tela, o resto é noite.
+ * Marrom-noite no fundo, texto claro e um só destaque, o amarelo do ipê.
+ */
 :root {
-  --background: #fbf9f5;
-  --surface: #ffffff;
-  --soft: #f3efe6;
-  --foreground: #111111;
-  --ink-2: #3a3833;
-  --muted: #68655e;
-  --line: #e6e0d3;
-  /* Esmeralda: #10b981 sobre vidro escuro; em fundo claro, o tom mais escuro (contraste AA). */
-  --match: #047857;
-  --match-bright: #34d399;
-  --match-soft: #e3f4ec;
+  --background: #2a1b12;
+  --surface: #36251a;
+  --soft: #423024;
+  --foreground: #f6f0e6;
+  --ink-2: #ddd4c8;
+  --muted: #b9b0a6;
+  --line: #4d392b;
+  --ipe: #ffc81e;
+  --on-ipe: #1a1008;
+  --danger: #ff9b8a;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @theme inline {
@@ -25,62 +26,42 @@
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --color-match: var(--match);
-  --color-match-soft: var(--match-soft);
-  --color-match-bright: var(--match-bright);
-  --font-sans: var(--font-jakarta);
-  --font-serif: var(--font-instrument);
+  --color-ipe: var(--ipe);
+  --color-on-ipe: var(--on-ipe);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-brico);
   --ease-out-expo: var(--ease-out);
 }
 
 html {
-  background: #ece7dc;
+  background: #1d120c;
+  color-scheme: dark;
+  accent-color: var(--ipe);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-family: var(--font-brico), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
-  font-feature-settings: "ss01", "cv11";
   text-rendering: optimizeLegibility;
 }
 
-/* No computador, o app aparece como um celular no centro. */
-@media (min-width: 640px) {
-  .app-shell {
-    box-shadow:
-      0 0 0 1px rgb(0 0 0 / 0.04),
-      0 40px 120px -40px rgb(0 0 0 / 0.35);
-  }
-}
-
-.display {
-  font-weight: 700;
+/* Títulos: Bricolage apertada. O tamanho vem de cada tela. */
+@utility title {
+  font-weight: 600;
   letter-spacing: -0.035em;
-  line-height: 1.02;
+  line-height: 0.92;
 }
 
-/* Palavra de destaque em serifa itálica, dentro de títulos em Jakarta. */
-/* Véu no rodapé atrás das barras flutuantes: o conteúdo some suave em vez de bater na barra. */
-.dock-scrim {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  z-index: 30;
-  width: 100%;
-  max-width: 28rem;
-  height: 7rem;
-  transform: translateX(-50%);
-  pointer-events: none;
-  background: linear-gradient(to top, var(--background) 10%, color-mix(in oklab, var(--background) 70%, transparent) 50%, transparent);
+::selection {
+  background: var(--ipe);
+  color: var(--on-ipe);
 }
 
-.accent {
-  font-family: var(--font-instrument), Georgia, serif;
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+:focus-visible {
+  outline: 2px solid var(--ipe);
+  outline-offset: 2px;
 }
 
 .no-scrollbar {
@@ -100,7 +81,7 @@ body {
 
 /* Esqueleto de carregamento. */
 .skeleton {
-  background: linear-gradient(100deg, var(--soft) 30%, #f9f6f0 50%, var(--soft) 70%);
+  background: linear-gradient(100deg, var(--surface) 30%, var(--soft) 50%, var(--surface) 70%);
   background-size: 300% 100%;
   animation: shimmer 1.3s linear infinite;
 }
@@ -113,42 +94,20 @@ body {
   }
 }
 
-/* Entrada em cascata (listas). Use style={{ "--i": n }}. */
-.rise {
-  animation: rise 640ms var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 55ms);
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 .fade-img {
   opacity: 0;
-  transform: scale(1.04);
-  transition:
-    opacity 600ms var(--ease-out),
-    transform 900ms var(--ease-out);
+  transition: opacity 500ms var(--ease-out);
 }
 .fade-img[data-loaded="true"] {
   opacity: 1;
-  transform: none;
 }
 
-/* Texto que corre (faixa do Descobrir). */
-.marquee {
-  animation: marquee 28s linear infinite;
+/* Véu de leitura por cima da foto: só onde tem texto. */
+.scrim-bottom {
+  background: linear-gradient(to top, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.5) 45%, transparent 100%);
 }
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
+.scrim-top {
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.6) 0%, transparent 100%);
 }
 
 /* ---------- View transitions (navegação) ---------- */
@@ -192,9 +151,6 @@ body {
   animation-duration: 460ms;
   animation-timing-function: var(--ease-out);
 }
-::view-transition-image-pair(.morph) {
-  animation-name: vt-via-blur;
-}
 
 ::view-transition-group(tabbar) {
   animation: none;
@@ -223,11 +179,6 @@ body {
     translate: 0 0;
   }
 }
-@keyframes vt-via-blur {
-  35% {
-    filter: blur(2px);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
@@ -236,14 +187,11 @@ body {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
   }
-  .rise,
-  .marquee,
   .skeleton {
     animation: none;
   }
   .fade-img {
     transition: none;
     opacity: 1;
-    transform: none;
   }
 }

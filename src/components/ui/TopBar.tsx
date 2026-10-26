@@ -1,4 +1,4 @@
-import { ChevronLeft, MapPin, UserRound } from "lucide-react";
+import { ArrowLeft, UserRound } from "lucide-react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Logo } from "./Logo";
@@ -21,7 +21,7 @@ export function Avatar({ name, url, size = 36 }: { name: string; url: string | n
   return (
     <span
       className="grid place-items-center rounded-full bg-foreground font-semibold text-background"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
     >
       {name.slice(0, 1).toUpperCase()}
     </span>
@@ -31,77 +31,33 @@ export function Avatar({ name, url, size = 36 }: { name: string; url: string | n
 export async function AccountButton() {
   const user = await getCurrentUser();
   return user ? (
-    <Link href="/perfil" aria-label="Seu perfil" className="press rounded-full ring-2 ring-background">
+    <Link href="/perfil" aria-label="Seu perfil" className="press grid size-11 place-items-center">
       <Avatar name={user.name} url={user.avatarUrl} size={34} />
     </Link>
   ) : (
-    <Link
-      href="/entrar"
-      aria-label="Entrar"
-      className="press grid size-[34px] place-items-center rounded-full border border-line bg-surface text-foreground"
-    >
-      <UserRound className="size-[18px]" strokeWidth={1.5} />
+    <Link href="/entrar" className="press flex h-11 items-center gap-2 text-[15px] font-medium">
+      <UserRound className="size-5" strokeWidth={1.75} /> Entrar
     </Link>
   );
 }
 
-/** Seletor de cidade (por enquanto só Campo Grande). */
-export function CityPill() {
+/** Barra do topo: marca no início; nas outras telas, voltar com o nome de onde volta. */
+export function TopBar({ back, right }: { back?: { href: string; label?: string }; right?: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-1 rounded-full bg-soft px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink-2">
-      <MapPin className="size-3.5" strokeWidth={1.5} /> Campo Grande
-    </span>
-  );
-}
-
-/** Barra do topo: logo + cidade no início; nas outras telas, botão de voltar. */
-export function TopBar({
-  back,
-  right,
-  city = false,
-}: {
-  back?: { href: string; label?: string };
-  right?: React.ReactNode;
-  city?: boolean;
-}) {
-  return (
-    <header className="flex items-center justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
+    <header className="flex items-center justify-between gap-3 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-1">
       {back ? (
         <Link
           href={back.href}
           transitionTypes={["nav-back"]}
-          className="press -ml-2 flex items-center gap-0.5 rounded-full py-2 pr-3 pl-1 text-sm font-medium text-ink-2"
+          className="press -ml-1 flex h-11 items-center gap-2 pr-3 text-[16px] font-medium"
         >
-          <ChevronLeft className="size-5" strokeWidth={1.5} />
+          <ArrowLeft className="size-5" strokeWidth={2} />
           {back.label ?? "Voltar"}
         </Link>
       ) : (
         <Logo />
       )}
-      <div className="flex items-center gap-2">
-        {city && <CityPill />}
-        {right ?? <AccountButton />}
-      </div>
+      {right ?? <AccountButton />}
     </header>
-  );
-}
-
-/** Botão redondo de vidro escuro, para ficar por cima de foto. */
-export function GlassButton({
-  children,
-  label,
-  className = "",
-}: {
-  children: React.ReactNode;
-  label: string;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-label={label}
-      className={`press grid size-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md ${className}`}
-    >
-      {children}
-    </span>
   );
 }

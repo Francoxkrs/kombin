@@ -107,11 +107,14 @@ Suba o repositório no GitHub e importe na [Vercel](https://vercel.com) (plano H
 
 ## Visual
 
-- **Paleta:** fundo `#FBF9F5`, superfícies `#F3EFE6` com borda `#E6E0D3`, texto `#111111`, texto secundário `#68655E`. A compatibilidade é sempre esmeralda em vidro escuro (`CompatPill`).
-- **Tipos:** Plus Jakarta Sans (400 a 700) na interface; Instrument Serif itálico (classe `.accent`) só nas palavras de emoção dos títulos ("O que *combina* com você hoje?").
-- **Ícones:** só `lucide-react` com `strokeWidth={1.5}`. Sem emoji do sistema. Ícones de ocasião e etiqueta passam por `src/components/ui/Glyph.tsx`.
-- **Fotos:** lugar sem foto mostra uma superfície neutra com ícone, nunca letra gigante. Ocasiões usam fotos do Unsplash (`src/lib/occasions.ts`); restaurantes usam as fotos do Google do próprio lugar.
-- **Uma barra flutuante por tela:** o dock some nas telas que têm barra de ação própria (lista `HIDDEN` em `src/components/ui/TabBar.tsx`), e todo `main` tem `pb-36`.
+Direção "Tela cheia": a foto do lugar ocupa a tela e o resto é noite.
+
+- **Cores:** fundo marrom-noite `#2A1B12`, superfícies `#36251A` e `#423024`, texto `#F6F0E6`, secundário `#B9B0A6`. Um destaque só, o amarelo do ipê `#FFC81E`: botão principal, "% combina" e o sublinhado da aba ativa. Tokens em `src/app/globals.css`.
+- **Tipo:** uma fonte, Bricolage Grotesque (variável). Títulos com a utilidade `title` (semibold, letra apertada); o tamanho do nome do lugar vem de `posterNameSize` em `src/lib/screen.ts`.
+- **Controles:** botão é pílula (`btn()` e `BTN_*` em `src/components/ui/styles.ts`), foto não tem canto arredondado, botão por cima de foto é um círculo claro (`ROUND_LIGHT`). Sem vidro, sem sombra, sem gradiente de enfeite; o véu escuro só existe embaixo de texto em cima de foto (`scrim-bottom`, `scrim-top`).
+- **Descobrir:** um lugar por tela (`src/components/Discover.tsx`), passa pra cima para o próximo; a última tela da ocasião manda os 3 primeiros pra votar ou abre a lista com filtros. O servidor já manda o ranking das 6 ocasiões, então trocar de aba é instantâneo.
+- **Fotos:** sempre a foto do próprio lugar (Google ou do dono). Entrar e perfil abrem com a foto da casa que mais combina no geral, com o nome dela.
+- **Barra de baixo:** navegação em texto, colada no rodapé; some nas telas com barra de ação própria (lista `HIDDEN` em `src/components/ui/TabBar.tsx`).
 
 ## Decisões do produto
 
