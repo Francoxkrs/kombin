@@ -5,7 +5,9 @@ import { TopBar } from "@/components/ui/TopBar";
 import { PlaceRow } from "@/components/PlaceRow";
 import { requireUser } from "@/lib/auth";
 import { CUISINES } from "@/lib/cuisines";
-import { getOccasion } from "@/lib/occasions";
+import { BarChart, SERIES_COLORS } from "@/components/ui/BarChart";
+import { countByDay, ownerTips, summarizeReviews } from "@/lib/dashboard";
+import { getOccasion, NOISE_LABELS, SPEND_LABELS } from "@/lib/occasions";
 import { getRepo } from "@/lib/repo";
 import { TAGS } from "@/lib/tags";
 import type { Place } from "@/lib/types";
@@ -87,7 +89,11 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
     );
   }
 
-  const stats = await Promise.all(owned.map((p) => repo.placeStats(p.id, 30)));
+  const [stats, clicks, reviews] = await Promise.all([
+    Promise.all(owned.map((p) => repo.placeStats(p.id, 30))),
+    Promise.all(owned.map((p) => repo.leadTimes(30, p.id))),
+    Promise.all(owned.map((p) => repo.placeReviews(p.id))),
+  ]);
 
   return (
     <>
@@ -99,6 +105,16 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
           const totalImp = s.impressions.reduce((a, b) => a + b.count, 0);
           const topOcc = s.impressions[0] ? getOccasion(s.impressions[0].occasion) : undefined;
           const items = checklist(place);
+          const byKind = (kind: string) =>
+            countByDay(clicks[i].filter((c) => c.kind === kind).map((c) => c.created_at), 30);
+          const whatsDays = byKind("whatsapp");
+          const dirDays = byKind("directions");
+          const summary = summarizeReviews(reviews[i]);
+          const tips = ownerTips(
+            summary,
+            { about: place.about, whatsapp: place.whatsapp, menuCount: place.menuPhotos.length + (place.menuUrl ? 1 : 0) },
+            { whatsapp: s.whatsapp, directions: s.directions },
+          );
           const done = items.filter((x) => x.done).length;
           return (
             <section key={place.id} className="space-y-12">
@@ -154,6 +170,97 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
                     </div>
                   ))}
                 </dl>
+              </div>
+
+              <div>
+                <h2 className="title text-[28px]">Cliques por dia</h2>
+                <p className="mt-2 mb-4 text-[15px] leading-snug text-muted">
+                  Cada barra é um dia. Cada aparelho conta uma vez a cada 30 minutos, então é gente de verdade, não toque repetido.
+                </p>
+                {s.whatsapp + s.directions === 0 ? (
+                  <p className="rounded-2xl bg-surface p-5 text-[15px] leading-snug text-muted">
+                    Ninguém chamou no WhatsApp nem pediu rota nos últimos 30 dias. Foto de capa e cardápio são o que mais faz a
+                    pessoa sair do “vou ver” para o “vou”.
+                  </p>
+                ) : (
+                  <BarChart
+                    days={whatsDays.map((d) => d.day)}
+                    series={[
+                      { label: "WhatsApp", color: SERIES_COLORS[0], values: whatsDays.map((d) => d.count) },
+                      { label: "Rota", color: SERIES_COLORS[1], values: dirDays.map((d) => d.count) },
+                    ]}
+                    label={`Cliques por dia em ${place.name}: ${s.whatsapp} no WhatsApp e ${s.directions} pedidos de rota`}
+                  />
+                )}
+              </div>
+
+              <div>
+                <h2 className="title text-[28px]">O que os clientes disseram</h2>
+                {summary.total === 0 ? (
+                  <p className="mt-2 text-[15px] leading-snug text-muted">
+                    Ainda ninguém avaliou. As avaliações chegam de quem marca “Já fui” e responde três perguntas: quanto gastou,
+                    se pagou couvert e como estava o barulho.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-2 text-[15px] leading-snug text-muted">
+                      {summary.total} {summary.total === 1 ? "avaliação" : "avaliações"}
+                      {summary.verified > 0 && `, ${summary.verified} de quem confirmou a visita`}. Você vê o que disseram, não
+                      quem disse.
+                    </p>
+                    <Distribution
+                      title="Gasto por pessoa"
+                      rows={summary.spend.map((x) => ({ label: x.label, count: x.count }))}
+                      total={summary.total}
+                    />
+                    <Distribution
+                      title="Barulho"
+                      rows={summary.noise.map((x) => ({ label: x.label, count: x.count }))}
+                      total={summary.total}
+                    />
+                    {summary.coverShare != null && (
+                      <p className="mt-5 text-[16px]">
+                        <b className="tabular-nums">{Math.round(summary.coverShare * 100)}%</b> disseram que pagaram couvert.
+                      </p>
+                    )}
+                  </>
+                )}
+                {tips.length > 0 && (
+                  <div className="mt-6 rounded-2xl bg-surface p-5">
+                    <p className="text-[18px] font-semibold">O que dá para mudar</p>
+                    <ul className="mt-2 space-y-2 text-[15px] leading-snug text-ink-2">
+                      {tips.map((t) => (
+                        <li key={t} className="flex gap-2">
+                          <span className="text-ipe" aria-hidden>
+                            •
+                          </span>
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {summary.total > 0 && (
+                  <details className="mt-4">
+                    <summary className="flex h-11 cursor-pointer items-center text-[15px] text-muted">
+                      Ver as últimas avaliações
+                    </summary>
+                    <ul className="divide-y divide-line">
+                      {reviews[i].slice(0, 20).map((r, k) => (
+                        <li key={k} className="py-3 text-[15px]">
+                          <p>
+                            {SPEND_LABELS[r.spend]}, {NOISE_LABELS[r.noise]}, {r.cover ? "com couvert" : "sem couvert"}
+                          </p>
+                          <p className="text-[13px] text-muted">
+                            {new Date(r.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Campo_Grande" })}
+                            {r.occasion && ` · ${getOccasion(r.occasion)?.name ?? r.occasion}`}
+                            {r.verified && " · visita confirmada"}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </div>
 
               {s.impressions.length > 0 && (
@@ -269,5 +376,27 @@ export default async function OwnerPanel({ searchParams }: PageProps<"/painel">)
         })}
       </main>
     </>
+  );
+}
+
+/** Barras horizontais de uma pergunta da avaliação (quantos escolheram cada resposta). */
+function Distribution({ title, rows, total }: { title: string; rows: { label: string; count: number }[]; total: number }) {
+  return (
+    <div className="mt-5">
+      <p className="text-[16px] font-semibold">{title}</p>
+      <ul className="mt-2 space-y-2">
+        {rows.map((r) => (
+          <li key={r.label} className="text-[15px]">
+            <div className="flex justify-between">
+              <span>{r.label}</span>
+              <span className="tabular-nums text-muted">{r.count}</span>
+            </div>
+            <div className="mt-1 h-2 rounded-full bg-surface">
+              <div className="h-full rounded-full bg-ipe" style={{ width: `${(r.count / total) * 100}%` }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newCode } from "../code";
+import type { ReviewRow } from "../dashboard";
 import type { ChoiceEvent, SearchEvent } from "../taste";
 import type {
   DecisionSession,
@@ -193,6 +194,26 @@ export interface PlaceStats {
 }
 
 export type SavedList = "want" | "been";
+
+export interface AdminUser {
+  id: string;
+  name: string | null;
+  role: Profile["role"];
+  createdAt: string;
+  email: string | null;
+  lastSignIn: string | null;
+  reviews: number;
+  owns: string[];
+}
+
+export interface AdminLogEntry {
+  id: number;
+  actor: string | null;
+  action: string;
+  target: string | null;
+  detail: string | null;
+  at: string;
+}
 
 /**
  * Acesso ao banco com a chave secreta, SÓ no servidor. Toda regra de quem pode
@@ -730,6 +751,173 @@ export function createRepo(url: string, secretKey: string) {
         );
       }
       check(await db.from("place_claims").update({ status: approve ? "approved" : "rejected" }).eq("id", id));
+    },
+
+    // ---------- Painéis (admin e restaurante) ----------
+
+    /** Contagens da visão geral do admin. */
+    async adminCounts() {
+      const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {
+        const { count, error } = await q;
+        if (error) throw new Error(`Supabase: ${error.message}`);
+        return count ?? 0;
+      };
+      const head = { count: "exact" as const, head: true };
+      const [users, owners, openClaims, reviews, statuses, noCover] = await Promise.all([
+        count(db.from("profiles").select("id", head)),
+        count(db.from("place_owners").select("place_id", head)),
+        count(db.from("place_claims").select("id", head).eq("status", "pending")),
+        count(db.from("micro_reviews").select("id", head)),
+        db.from("places").select("status"),
+        count(db.from("places").select("id", head).eq("status", "approved").is("cover_url", null)),
+      ]);
+      const rows = check(statuses) as { status: PlaceStatus }[];
+      const by = (st: PlaceStatus) => rows.filter((r) => r.status === st).length;
+      return {
+        users,
+        owners,
+        openClaims,
+        reviews,
+        approved: by("approved"),
+        pending: by("pending"),
+        rejected: by("rejected"),
+        noCover,
+      };
+    },
+
+    /** Momento de cada evento dos últimos `days` dias (para os gráficos por dia). */
+    async eventTimes(table: "search_log" | "micro_reviews" | "profiles", days: number) {
+      const { data, error } = await db
+        .from(table)
+        .select(table === "search_log" ? "created_at, occasion" : "created_at")
+        .gte("created_at", sinceIso(days))
+        .limit(20_000);
+      // search_log é da migração 0006: sem ela, o painel mostra zero em vez de cair.
+      if (error) {
+        if (table === "search_log") return [];
+        throw new Error(`Supabase: ${error.message}`);
+      }
+      return (data ?? []) as unknown as { created_at: string; occasion?: string }[];
+    },
+
+    /** Cliques de WhatsApp e rota, de um lugar ou de todos. */
+    async leadTimes(days: number, placeId?: string) {
+      let q = db.from("lead_clicks").select("place_id, kind, created_at").gte("created_at", sinceIso(days));
+      if (placeId) q = q.eq("place_id", placeId);
+      return check(await q.limit(20_000)) as { place_id: string; kind: LeadKind; created_at: string }[];
+    },
+
+    /** Chamadas ao Google feitas hoje pelas rotas públicas (o teto diário de rate-limit.ts). */
+    async googleUsageToday(): Promise<number> {
+      const start = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000).toISOString();
+      const { data, error } = await db
+        .from("rate_limits")
+        .select("hits")
+        .like("key", "google:%:day")
+        .gte("window_start", start);
+      if (error) return 0;
+      return ((data ?? []) as { hits: number }[]).reduce((s, r) => s + r.hits, 0);
+    },
+
+    /** Contas com papel, e-mail, avaliações e casas de que é dono. */
+    async listUsers(): Promise<AdminUser[]> {
+      const [profiles, owners, reviews, auth] = await Promise.all([
+        db.from("profiles").select("id, name, role, created_at").order("created_at", { ascending: false }).limit(500),
+        db.from("place_owners").select("user_id, places(name)"),
+        db.from("micro_reviews").select("user_id").not("user_id", "is", null).limit(20_000),
+        db.auth.admin.listUsers({ perPage: 500 }),
+      ]);
+      const emails = new Map<string, { email: string | null; lastSignIn: string | null }>();
+      for (const u of auth.data?.users ?? []) {
+        emails.set(u.id, { email: u.email ?? null, lastSignIn: u.last_sign_in_at ?? null });
+      }
+      const owned = new Map<string, string[]>();
+      for (const o of (check(owners) as unknown as { user_id: string; places: { name: string } | null }[]) ?? []) {
+        owned.set(o.user_id, [...(owned.get(o.user_id) ?? []), o.places?.name ?? "?"]);
+      }
+      const reviewCount = new Map<string, number>();
+      for (const r of check(reviews) as { user_id: string }[]) {
+        reviewCount.set(r.user_id, (reviewCount.get(r.user_id) ?? 0) + 1);
+      }
+      return (
+        check(profiles) as { id: string; name: string | null; role: Profile["role"]; created_at: string }[]
+      ).map((p) => ({
+        id: p.id,
+        name: p.name,
+        role: p.role,
+        createdAt: p.created_at,
+        email: emails.get(p.id)?.email ?? null,
+        lastSignIn: emails.get(p.id)?.lastSignIn ?? null,
+        reviews: reviewCount.get(p.id) ?? 0,
+        owns: owned.get(p.id) ?? [],
+      }));
+    },
+
+    async setRole(userId: string, role: Profile["role"]) {
+      check(await db.from("profiles").update({ role }).eq("id", userId));
+    },
+
+    /** Donos já aprovados, com a casa e o nome. */
+    async listOwners() {
+      const rows = check(
+        await db
+          .from("place_owners")
+          .select("place_id, user_id, created_at, places(name), profiles(name)")
+          .order("created_at", { ascending: false }),
+      ) as unknown as {
+        place_id: string;
+        user_id: string;
+        created_at: string;
+        places: { name: string } | null;
+        profiles: { name: string | null } | null;
+      }[];
+      return rows.map((r) => ({
+        placeId: r.place_id,
+        userId: r.user_id,
+        placeName: r.places?.name ?? "?",
+        userName: r.profiles?.name ?? null,
+        since: r.created_at,
+      }));
+    },
+
+    async revokeOwner(placeId: string, userId: string) {
+      check(await db.from("place_owners").delete().eq("place_id", placeId).eq("user_id", userId));
+    },
+
+    /** Registra uma ação do admin. Sem a migração 0007, só avisa no log: a ação em si já foi feita. */
+    async logAdmin(e: { actorId: string; actorName: string; action: string; target?: string; detail?: string }) {
+      const { error } = await db.from("admin_log").insert({
+        actor_id: e.actorId,
+        actor_name: e.actorName,
+        action: e.action,
+        target: e.target ?? null,
+        detail: e.detail ?? null,
+      });
+      if (error) console.warn("Kombin: histórico do admin desligado. Rode supabase/migrations/0007_painel_admin.sql.", error.message);
+    },
+
+    async listAdminLog(limit = 100): Promise<AdminLogEntry[] | null> {
+      const { data, error } = await db
+        .from("admin_log")
+        .select("id, actor_name, action, target, detail, created_at")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) return null;
+      return (data as { id: number; actor_name: string | null; action: string; target: string | null; detail: string | null; created_at: string }[]).map(
+        (r) => ({ id: r.id, actor: r.actor_name, action: r.action, target: r.target, detail: r.detail, at: r.created_at }),
+      );
+    },
+
+    /** Avaliações de um lugar, mais novas primeiro (sem quem avaliou: o dono não vê pessoas). */
+    async placeReviews(placeId: string, limit = 200): Promise<ReviewRow[]> {
+      const base = "spend, cover, noise, occasion, created_at";
+      let res: { data: unknown; error: { code?: string; message: string } | null } = await db.from("micro_reviews").select(`${base}, verified`).eq("place_id", placeId).order("created_at", { ascending: false }).limit(limit);
+      if (res.error?.code === "42703") {
+        res = await db.from("micro_reviews").select(base).eq("place_id", placeId).order("created_at", { ascending: false }).limit(limit);
+      }
+      return (check(res) as unknown as { spend: number; cover: boolean; noise: number; occasion: string | null; verified?: boolean; created_at: string }[]).map(
+        (r) => ({ spend: r.spend, cover: r.cover, noise: r.noise, occasion: r.occasion, verified: !!r.verified, createdAt: r.created_at }),
+      );
     },
   };
 }
