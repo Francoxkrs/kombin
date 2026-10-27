@@ -44,12 +44,13 @@ export default async function AdminPlaces({ searchParams }: PageProps<"/admin/lu
 
   return (
     <>
-      <form className="flex gap-2">
+      <div className="lg:flex lg:items-center lg:gap-4">
+      <form className="flex gap-2 lg:w-[440px] lg:shrink-0">
         <input type="hidden" name="s" value={filter} />
         <input name="q" defaultValue={q} placeholder="Nome, bairro ou tipo" className={INPUT} aria-label="Buscar lugar" />
         <button className={BTN_LIGHT}>Buscar</button>
       </form>
-      <nav className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5">
+      <nav className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:mt-0 lg:px-0">
         {FILTERS.map((f) => (
           <Link
             key={f.key}
@@ -61,6 +62,7 @@ export default async function AdminPlaces({ searchParams }: PageProps<"/admin/lu
           </Link>
         ))}
       </nav>
+      </div>
       <p className="mt-4 text-[15px] text-muted">
         {places.length === 0
           ? "Nada aqui."
@@ -68,7 +70,7 @@ export default async function AdminPlaces({ searchParams }: PageProps<"/admin/lu
             ? `${places.length} lugares. Mostrando os ${SHOW} primeiros; busque para achar os outros.`
             : `${places.length} ${places.length === 1 ? "lugar" : "lugares"}`}
       </p>
-      <ul className="mt-4 space-y-4">
+      <ul className="mt-4 grid items-start gap-4 xl:grid-cols-2">
         {places.slice(0, SHOW).map((p) => (
           <PlaceCard
             key={p.id}

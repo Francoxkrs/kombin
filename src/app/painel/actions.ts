@@ -11,6 +11,7 @@ import {
   blurhash,
   claimForm,
   formObject,
+  newPlaceForm,
   MAX_MENU_PAGES,
   menuPageMeta,
   ownerForm,
@@ -31,6 +32,33 @@ export async function claimPlace(formData: FormData) {
   if (!(await allow(`claim:user:${user.id}`, LIMITS.claim))) return;
   await repo.createClaim(placeId, user.id, contact, message);
   redirect(`/painel/reivindicar/${placeId}?enviado=1`);
+}
+
+/**
+ * Cadastro pedido pelo dono: a casa entra como "para revisar" e o pedido de dono vai junto.
+ * Aprovado o dono, ele já monta a página; a casa só aparece no app quando o admin aprova o lugar.
+ */
+export async function requestNewPlace(formData: FormData) {
+  const user = await requireUser("/painel/novo");
+  const form = newPlaceForm.safeParse({ ...formObject(formData, ["cuisines"]), message: formData.get("message") ?? "" });
+  if (!form.success) redirect("/painel/novo?erro=1");
+  const { name, neighborhood, address, cuisines, instagram, contact, opening, message } = form.data;
+  if (!(await allow(`claim:user:${user.id}`, LIMITS.claim))) redirect("/painel/novo?erro=limite");
+  const repo = getRepo();
+  const id = await repo.createPlace({
+    name,
+    neighborhood,
+    address,
+    cuisines,
+    instagram,
+    whatsapp: normalizeWhatsapp(formData.get("whatsapp")),
+    status: "pending",
+  });
+  const note = [opening ? "Casa abrindo agora." : "Casa já funciona, mas não estava no Kombin.", message].filter(Boolean).join(" ");
+  await repo.createClaim(id, user.id, contact, note);
+  revalidatePath("/admin", "layout");
+  revalidatePath("/painel");
+  redirect("/painel?pedido=1");
 }
 
 /** Confere no servidor que quem chama é dono do lugar (ou admin). O placeId vem do navegador. */

@@ -19,7 +19,7 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/usu
         {users.length} contas, {admins} {admins === 1 ? "admin" : "admins"}. Quem está em ADMIN_EMAILS na Vercel é admin
         mesmo sem o papel aqui.
       </p>
-      <form className="mt-4">
+      <form className="mt-4 max-w-xl">
         <input
           name="q"
           defaultValue={q}
@@ -28,7 +28,7 @@ export default async function AdminUsers({ searchParams }: PageProps<"/admin/usu
           className="h-14 w-full rounded-2xl bg-surface px-4 text-[16px] outline-none placeholder:text-muted focus:ring-2 focus:ring-ipe"
         />
       </form>
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-4 grid items-start gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {shown.slice(0, 100).map((u) => {
           const label = u.name ?? u.email ?? "Sem nome";
           return (

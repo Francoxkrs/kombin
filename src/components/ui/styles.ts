@@ -37,3 +37,7 @@ const FIELD =
 
 export const INPUT = `h-14 ${FIELD}`;
 export const TEXTAREA = `py-3 ${FIELD}`;
+
+/** Os mesmos campos dentro de um bloco de superfície (painéis), onde bg-surface sumiria. */
+export const INPUT_ON_SURFACE = INPUT.replace("bg-surface", "bg-soft").replace("focus:bg-soft", "focus:bg-background");
+export const TEXTAREA_ON_SURFACE = TEXTAREA.replace("bg-surface", "bg-soft").replace("focus:bg-soft", "focus:bg-background");

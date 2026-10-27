@@ -15,7 +15,7 @@ export default async function AdminImport() {
   const repo = getRepo();
   const [queue, demo] = await Promise.all([repo.placesWithoutVision().then((l) => l.length), repo.countDemoPlaces()]);
   return (
-    <div className="space-y-8">
+    <div className="max-w-3xl space-y-8">
       {demo > 0 && (
         <form action={removeDemoPlaces} className="rounded-2xl bg-surface p-5">
           <p className="text-[18px] font-semibold text-ipe">Há {demo} lugares fictícios no banco</p>
