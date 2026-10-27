@@ -78,18 +78,34 @@ const httpUrl = (max: number) =>
 const optionalUrl = (max: number) =>
   z.union([z.literal("").transform(() => null), httpUrl(max)]);
 
+const instagram = z
+  .string()
+  .trim()
+  .transform((s) => s.replace(/^@/, ""))
+  .pipe(z.union([z.literal(""), z.string().regex(/^[A-Za-z0-9._]{1,30}$/)]))
+  .transform((s) => s || null);
+
+const optionalText = (max: number) => cleanText(max).transform((s) => s || null);
+
 export const ownerForm = z.object({
   placeId,
-  instagram: z
-    .string()
-    .trim()
-    .transform((s) => s.replace(/^@/, ""))
-    .pipe(z.union([z.literal(""), z.string().regex(/^[A-Za-z0-9._]{1,30}$/)]))
-    .transform((s) => s || null),
+  instagram,
   menuUrl: optionalUrl(300),
   cuisines: z.array(cuisineSlug).max(CUISINES.length),
   about: cleanText(280).transform((s) => s || null),
   tags: z.array(tagSlug).max(TAGS.length),
+});
+
+/** Pedido de cadastro de um restaurante que ainda não está no Kombin (casa nova ou que a importação não pegou). */
+export const newPlaceForm = z.object({
+  name: cleanText(80).pipe(z.string().min(2)),
+  neighborhood: optionalText(60),
+  address: optionalText(160),
+  cuisines: z.array(cuisineSlug).max(CUISINES.length),
+  instagram: instagram.catch(null),
+  contact: cleanText(80).pipe(z.string().min(8)),
+  opening: z.literal("1").optional(),
+  message: optionalText(500),
 });
 
 /** Prévia desfocada gerada no navegador: só o alfabeto do BlurHash, tamanho de 4x3 componentes. */

@@ -128,8 +128,17 @@ export async function resolveClaim(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!Number.isSafeInteger(id) || id <= 0) return;
   const approve = formData.get("approve") === "1";
-  await getRepo().resolveClaim(id, approve);
-  await log(admin, approve ? "Aprovou dono" : "Recusou dono", text(formData.get("label")) ?? `pedido ${id}`);
+  const repo = getRepo();
+  await repo.resolveClaim(id, approve);
+  const label = text(formData.get("label")) ?? `pedido ${id}`;
+  await log(admin, approve ? "Aprovou dono" : "Recusou dono", label);
+  // Casa nova pedida pelo dono: o mesmo toque pode já colocar a casa no app.
+  const placeId = adminId.safeParse(formData.get("placeId"));
+  if (approve && formData.get("alsoPlace") === "1" && placeId.success) {
+    await repo.updatePlace(placeId.data, { status: "approved" });
+    await log(admin, "Aprovou", label);
+    updateTag(CATALOG_TAG);
+  }
   refresh();
   revalidatePath("/painel");
 }

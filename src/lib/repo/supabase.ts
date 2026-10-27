@@ -178,6 +178,8 @@ export interface Claim {
   id: number;
   placeId: string;
   placeName: string;
+  /** Casa pedida pelo próprio dono, ainda fora do app (status "para revisar"). */
+  newPlace: boolean;
   userId: string;
   userName: string | null;
   contact: string;
@@ -700,6 +702,23 @@ export function createRepo(url: string, secretKey: string) {
       if (error && !error.message.includes("duplicate")) throw new Error(error.message);
     },
 
+    /** Pedidos de dono ainda em análise (para o painel de quem pediu). */
+    async userOpenClaims(userId: string) {
+      const rows = check(
+        await db
+          .from("place_claims")
+          .select("created_at, places(name, status)")
+          .eq("user_id", userId)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+      ) as unknown as { created_at: string; places: { name: string; status: PlaceStatus } | null }[];
+      return rows.map((r) => ({
+        placeName: r.places?.name ?? "?",
+        newPlace: r.places?.status === "pending",
+        since: r.created_at,
+      }));
+    },
+
     async hasOpenClaim(userId: string, placeId: string): Promise<boolean> {
       const { count } = await db
         .from("place_claims")
@@ -714,7 +733,7 @@ export function createRepo(url: string, secretKey: string) {
       const rows = check(
         await db
           .from("place_claims")
-          .select("id, place_id, user_id, contact, message, created_at, places(name), profiles(name)")
+          .select("id, place_id, user_id, contact, message, created_at, places(name, status), profiles(name)")
           .eq("status", "pending")
           .order("created_at"),
       ) as unknown as {
@@ -724,13 +743,14 @@ export function createRepo(url: string, secretKey: string) {
         contact: string;
         message: string | null;
         created_at: string;
-        places: { name: string } | null;
+        places: { name: string; status: PlaceStatus } | null;
         profiles: { name: string | null } | null;
       }[];
       return rows.map((r) => ({
         id: r.id,
         placeId: r.place_id,
         placeName: r.places?.name ?? "?",
+        newPlace: r.places?.status === "pending",
         userId: r.user_id,
         userName: r.profiles?.name ?? null,
         contact: r.contact,

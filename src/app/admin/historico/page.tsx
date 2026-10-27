@@ -19,12 +19,12 @@ export default async function AdminHistory() {
   return (
     <>
       <p className="text-[15px] text-muted">As últimas {log.length} mudanças feitas no admin, das mais novas para as mais antigas.</p>
-      <ol className="mt-4 divide-y divide-line">
+      <ol className="mt-4 max-w-3xl divide-y divide-line">
         {log.map((e) => (
           <li key={e.id} className="py-3 text-[15px]">
             <p>
               <b className="font-semibold">{e.actor ?? "Alguém"}</b> {e.action.toLowerCase()}
-              {e.target && <> · {e.target}</>}
+              {e.target && <>: {e.target}</>}
             </p>
             {e.detail && <p className="text-ink-2">“{e.detail}”</p>}
             <p className="text-[13px] text-muted">{dateTimeBR(e.at)}</p>

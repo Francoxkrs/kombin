@@ -6,7 +6,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BTN_IPE, BTN_QUIET, chip } from "@/components/ui/styles";
 import { rankPlaces } from "@/lib/match";
 import { searchLoginHref } from "@/lib/prefs";
+import { CUISINES } from "@/lib/cuisines";
+import { parseRequest } from "@/lib/nlq";
 import { ANY_OCCASION, BUDGET_OPTIONS, getOccasion, OCCASIONS, PARTY_OPTIONS, type Party } from "@/lib/occasions";
+import { TAGS } from "@/lib/tags";
 import type { Place, PlaceSignals, SpendBand } from "@/lib/types";
 
 interface State {
@@ -18,9 +21,16 @@ interface State {
   t: string[];
   nc: boolean;
   q: boolean;
+  /** Tipo de comida (slug de cuisines.ts). */
+  c: string;
+  /** "Perto de mim": posição só para ordenar, nunca gravada. */
+  geo: { lat: number; lng: number } | null;
 }
 
-const EMPTY: State = { o: "", b: "", p: "", n: "", t: [], nc: false, q: false };
+const EMPTY: State = { o: "", b: "", p: "", n: "", t: [], nc: false, q: false, c: "", geo: null };
+
+/** Etiquetas que já têm interruptor próprio não se repetem em "Mais filtros". */
+const MORE_TAGS = TAGS.filter((t) => t.slug !== "criancas");
 
 function Count({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -102,10 +112,14 @@ export function SearchForm({
   signals: [string, PlaceSignals][];
   neighborhoods: string[];
   loggedIn: boolean;
-  initial: State;
+  initial: Omit<State, "geo">;
 }) {
   const router = useRouter();
-  const [s, setS] = useState<State>(initial);
+  const [s, setS] = useState<State>({ ...initial, geo: null });
+  const [phrase, setPhrase] = useState("");
+  const [understood, setUnderstood] = useState<string[] | null>(null);
+  const [geoError, setGeoError] = useState("");
+  const [more, setMore] = useState(initial.c !== "" || initial.t.some((t) => t !== "criancas"));
   const signalMap = useMemo(() => new Map(signals), [signals]);
   const set = (patch: Partial<State>) => setS((prev) => ({ ...prev, ...patch }));
   const kids = s.t.includes("criancas");
@@ -120,10 +134,54 @@ export function SearchForm({
         tags: s.t.length ? s.t : undefined,
         noCover: s.nc,
         quiet: s.q,
+        cuisine: s.c || undefined,
+        origin: s.geo ?? undefined,
       }),
     [places, signalMap, occasion, s],
   );
-  const filled = [s.o, s.b, s.p, s.n].filter(Boolean).length + s.t.length + (s.nc ? 1 : 0) + (s.q ? 1 : 0);
+  const filled =
+    [s.o, s.b, s.p, s.n, s.c].filter(Boolean).length + s.t.length + (s.nc ? 1 : 0) + (s.q ? 1 : 0) + (s.geo ? 1 : 0);
+
+  const toggleTag = (slug: string) => set({ t: s.t.includes(slug) ? s.t.filter((t) => t !== slug) : [...s.t, slug] });
+
+  function locate() {
+    if (s.geo) {
+      set({ geo: null });
+      return;
+    }
+    if (!navigator.geolocation) {
+      setGeoError("Este navegador não informa a localização.");
+      return;
+    }
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        set({ geo: { lat: pos.coords.latitude, lng: pos.coords.longitude } });
+      },
+      () => setGeoError("Sem permissão de localização. Escolha um bairro no lugar."),
+      { maximumAge: 300_000, timeout: 10_000 },
+    );
+  }
+
+  /** Lê a frase e liga os filtros que ela pede, sem apagar o que já estava escolhido. */
+  function applyPhrase(e: React.FormEvent) {
+    e.preventDefault();
+    const r = parseRequest(phrase, neighborhoods);
+    setUnderstood(r.understood);
+    setS((prev) => ({
+      ...prev,
+      o: r.occasion ?? prev.o,
+      p: r.party ?? prev.p,
+      b: r.budget ?? prev.b,
+      n: r.neighborhood ?? prev.n,
+      c: r.cuisine ?? prev.c,
+      t: [...new Set([...prev.t, ...r.tags])],
+      nc: prev.nc || r.noCover,
+      q: prev.q || r.quiet,
+    }));
+    if (r.cuisine || r.tags.some((t) => t !== "criancas")) setMore(true);
+    if (r.near && !s.geo) locate();
+  }
 
   function submit() {
     const q = new URLSearchParams();
@@ -133,6 +191,11 @@ export function SearchForm({
     if (s.t.length) q.set("t", s.t.join(","));
     if (s.nc) q.set("nc", "1");
     if (s.q) q.set("q", "1");
+    if (s.c) q.set("c", s.c);
+    if (s.geo) {
+      q.set("lat", s.geo.lat.toFixed(4));
+      q.set("lng", s.geo.lng.toFixed(4));
+    }
     const to = `/o/${occasion.slug}${q.size ? `?${q}` : ""}`;
     // Monta os filtros à vontade; o login vem ao pedir os resultados, que voltam prontos depois.
     router.push(loggedIn ? to : searchLoginHref(to), { transitionTypes: ["nav-forward"] });
@@ -143,6 +206,44 @@ export function SearchForm({
       <main className="flex-1 px-5 pb-32">
         <h1 className="title mt-4 text-[48px]">O que vai ser hoje?</h1>
         <p className="mt-3 text-[17px] text-muted">Preencha só o que importa. O resto a gente calcula.</p>
+
+        <form onSubmit={applyPhrase} className="mt-7">
+          <label htmlFor="frase" className="text-[17px] font-medium">
+            Fala do seu jeito
+          </label>
+          <div className="mt-2 flex gap-2">
+            <input
+              id="frase"
+              value={phrase}
+              onChange={(e) => setPhrase(e.target.value)}
+              maxLength={200}
+              enterKeyHint="search"
+              placeholder="Ex.: jantar a dois tranquilo até 100 reais"
+              className="h-14 min-w-0 flex-1 rounded-2xl bg-surface px-4 text-[16px] outline-none placeholder:text-muted focus:bg-soft focus:ring-2 focus:ring-ipe"
+            />
+            <button disabled={!phrase.trim()} className={BTN_QUIET}>
+              Usar
+            </button>
+          </div>
+          {understood && (
+            <p className="mt-3 text-[15px] leading-snug text-muted" aria-live="polite">
+              {understood.length === 0 ? (
+                "Não entendi essa. Tente falar a ocasião, quanto quer gastar, o bairro ou o tipo de comida."
+              ) : (
+                <>
+                  Entendi:{" "}
+                  {understood.map((u, i) => (
+                    <span key={u} className="text-foreground">
+                      {u}
+                      {i < understood.length - 1 ? ", " : "."}
+                    </span>
+                  ))}{" "}
+                  Ajuste abaixo se precisar.
+                </>
+              )}
+            </p>
+          )}
+        </form>
 
         <Section title="Ocasião">
           <div className="flex flex-wrap gap-2">
@@ -174,9 +275,46 @@ export function SearchForm({
             label="Espaço pra criança"
             hint="Bom pra ir com os pequenos"
             on={kids}
-            onChange={() => set({ t: kids ? s.t.filter((t) => t !== "criancas") : [...s.t, "criancas"] })}
+            onChange={() => toggleTag("criancas")}
           />
+          <Toggle label="Perto de mim" hint="Os mais perto sobem na lista. Sua posição não é guardada." on={!!s.geo} onChange={() => locate()} />
+          {geoError && <p className="pb-2 text-[14px] text-danger">{geoError}</p>}
         </Section>
+
+        <section className="pt-9">
+          <button
+            onClick={() => setMore(!more)}
+            aria-expanded={more}
+            className="press flex h-11 w-full items-center justify-between text-left"
+          >
+            <span className="title text-[28px]">Mais filtros</span>
+            <span className="text-[15px] text-muted">{more ? "Fechar" : "Comida, estrutura, pet..."}</span>
+          </button>
+          {more && (
+            <div className="mt-4 space-y-6">
+              <div>
+                <h3 className="mb-3 text-[17px] font-medium">Tipo de comida</h3>
+                <div className="flex flex-wrap gap-2">
+                  {CUISINES.map((c) => (
+                    <button key={c.slug} className={chip(s.c === c.slug)} aria-pressed={s.c === c.slug} onClick={() => set({ c: s.c === c.slug ? "" : c.slug })}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-3 text-[17px] font-medium">A casa precisa ter</h3>
+                <div className="flex flex-wrap gap-2">
+                  {MORE_TAGS.map((t) => (
+                    <button key={t.slug} className={chip(s.t.includes(t.slug))} aria-pressed={s.t.includes(t.slug)} onClick={() => toggleTag(t.slug)}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
 
         {neighborhoods.length > 1 && (
           <Section title="Bairro">

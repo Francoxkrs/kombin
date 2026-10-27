@@ -1,8 +1,8 @@
 import { Page } from "@/components/ui/Page";
-import { TopBar } from "@/components/ui/TopBar";
+import { Shell } from "@/components/workspace/Shell";
 import { requireAdmin } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
-import { AdminNav } from "./AdminNav";
+import { AdminTitle } from "./AdminTitle";
 
 export const metadata = { title: "Admin · Kombin", robots: { index: false } };
 
@@ -12,12 +12,21 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const c = await getRepo().adminCounts();
   return (
     <Page>
-      <TopBar back={{ href: "/perfil", label: "Você" }} />
-      <main className="px-5 pt-2 pb-12">
-        <h1 className="title text-[48px]">Admin</h1>
-        <AdminNav badges={{ "/admin/lugares": c.pending, "/admin/donos": c.openClaims }} />
-        <div className="mt-6">{children}</div>
-      </main>
+      <Shell
+        area="Admin do Kombin"
+        title={<AdminTitle />}
+        root="/admin"
+        nav={[
+          { href: "/admin", label: "Visão geral" },
+          { href: "/admin/lugares", label: "Lugares", badge: c.pending },
+          { href: "/admin/donos", label: "Donos", badge: c.openClaims },
+          { href: "/admin/usuarios", label: "Usuários" },
+          { href: "/admin/importar", label: "Importar" },
+          { href: "/admin/historico", label: "Histórico" },
+        ]}
+      >
+        {children}
+      </Shell>
     </Page>
   );
 }

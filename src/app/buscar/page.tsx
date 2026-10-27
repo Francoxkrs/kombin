@@ -32,6 +32,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
           t: one("t") ? one("t").split(",") : [],
           nc: one("nc") === "1",
           q: one("q") === "1",
+          c: one("c"),
         }}
       />
     </Page>
