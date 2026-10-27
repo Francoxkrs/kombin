@@ -99,7 +99,7 @@ function EndScreen({ slate, occasion, isAdmin }: { slate: Slate; occasion: Occas
           Ainda não tem lugar de Campo Grande para {occasion.target}. Tente outra ocasião ali em cima.
         </p>
         {isAdmin && (
-          <Link href="/admin?s=importar" className={`${BTN_IPE} mt-7 w-full`}>
+          <Link href="/admin/importar" className={`${BTN_IPE} mt-7 w-full`}>
             Importar do Google agora
           </Link>
         )}

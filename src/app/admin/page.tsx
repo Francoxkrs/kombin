@@ -1,230 +1,174 @@
 import Link from "next/link";
-import { Page } from "@/components/ui/Page";
-import { BTN_IPE, BTN_LIGHT, chip } from "@/components/ui/styles";
-import { TopBar } from "@/components/ui/TopBar";
+import { redirect } from "next/navigation";
+import { BarChart } from "@/components/ui/BarChart";
 import { requireAdmin } from "@/lib/auth";
-import { cuisineLabel } from "@/lib/cuisines";
-import { OCCASIONS } from "@/lib/occasions";
+import { change, countByDay, splitPeriods, topCounts, withinDays } from "@/lib/dashboard";
+import { getOccasion } from "@/lib/occasions";
+import { googleDailyLimit } from "@/lib/rate-limit";
 import { getRepo } from "@/lib/repo";
-import type { PlaceStatus } from "@/lib/types";
-import { ESSENTIALS, QUERIES } from "@/lib/ingest/google";
-import { createPlace, removeDemoPlaces, resolveClaim, saveDetails, setStatus } from "./actions";
-import { ImportPanel } from "./ImportPanel";
-import { CoverEditor } from "../painel/PhotoEditors";
-import { PlaceFields } from "./PlaceFields";
-import { SubmitButton } from "@/components/ui/SubmitButton";
 
-export const metadata = { title: "Admin · Kombin", robots: { index: false } };
-// A importação e o vibe-check rodam como server actions desta página.
-export const maxDuration = 60;
+/** Endereços antigos (/admin?s=...) de antes das telas separadas. */
+const LEGACY: Record<string, string> = {
+  importar: "/admin/importar",
+  new: "/admin/importar#novo",
+  claims: "/admin/donos",
+  pending: "/admin/lugares?s=pending",
+  approved: "/admin/lugares?s=approved",
+  rejected: "/admin/lugares?s=rejected",
+};
 
-const TABS = [
-  { key: "importar", label: "Importar do Google" },
-  { key: "pending", label: "Para revisar" },
-  { key: "approved", label: "Aprovados" },
-  { key: "rejected", label: "Rejeitados" },
-  { key: "claims", label: "Donos" },
-  { key: "new", label: "+ Lugar" },
-] as const;
+const DAYS = 30;
 
-type Tab = (typeof TABS)[number]["key"];
-
-export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
+export default async function AdminOverview({ searchParams }: PageProps<"/admin">) {
   await requireAdmin();
-  const sp = await searchParams;
-  const tab: Tab = TABS.find((t) => t.key === sp.s)?.key ?? "importar";
+  const s = (await searchParams).s;
+  if (typeof s === "string" && LEGACY[s]) redirect(LEGACY[s]);
+
   const repo = getRepo();
-  const leads = await repo.leadCounts(30);
-  const totalWhats = leads.reduce((s, l) => s + l.whatsapp, 0);
-  const totalDir = leads.reduce((s, l) => s + l.directions, 0);
+  const [c, searches, leads, reviews, signups, google] = await Promise.all([
+    repo.adminCounts(),
+    repo.eventTimes("search_log", DAYS * 2),
+    repo.leadTimes(DAYS * 2),
+    repo.eventTimes("micro_reviews", DAYS * 2),
+    repo.eventTimes("profiles", DAYS * 2),
+    repo.googleUsageToday(),
+  ]);
+  const limit = googleDailyLimit().max;
+  const searchTimes = searches.map((r) => r.created_at);
+
+  const kpis = [
+    { label: "buscas", times: searchTimes },
+    { label: "cliques em WhatsApp", times: leads.filter((l) => l.kind === "whatsapp").map((l) => l.created_at) },
+    { label: "pedidos de rota", times: leads.filter((l) => l.kind === "directions").map((l) => l.created_at) },
+    { label: "avaliações novas", times: reviews.map((r) => r.created_at) },
+    { label: "contas novas", times: signups.map((r) => r.created_at) },
+  ].map((k) => {
+    const p = splitPeriods(k.times, DAYS);
+    return { label: k.label, n: p.current, delta: change(p.current, p.previous) };
+  });
+
+  const perDay = countByDay(searchTimes, DAYS);
+  const occasions = topCounts(searches.filter((r) => withinDays(r.created_at, DAYS)).map((r) => r.occasion ?? "?"));
+
+  const queue = [
+    { n: c.pending, label: "lugares para revisar", href: "/admin/lugares?s=pending" },
+    { n: c.openClaims, label: "pedidos de dono", href: "/admin/donos" },
+    { n: c.noCover, label: "aprovados sem foto de capa", href: "/admin/lugares?s=nocover" },
+  ].filter((q) => q.n > 0);
+
+  const share = Math.min(1, google / limit);
 
   return (
-    <Page>
-      <TopBar back={{ href: "/perfil", label: "Você" }} />
-      <main className="px-5 pt-2 pb-12">
-        <h1 className="title text-[48px]">Admin</h1>
-        <dl className="mt-5 grid grid-cols-2 gap-4">
+    <div className="space-y-10">
+      <section>
+        <h2 className="title text-[28px]">Últimos {DAYS} dias</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5">
+          {kpis.map((k) => (
+            <div key={k.label} className="flex flex-col-reverse">
+              <dt className="mt-1 text-[15px] leading-snug text-muted">
+                {k.label}
+                {k.delta != null && (
+                  <span className="block text-[13px] text-ink-2">
+                    {k.delta > 0 ? "▲" : k.delta < 0 ? "▼" : "="} {Math.abs(k.delta)}% vs. 30 dias antes
+                  </span>
+                )}
+              </dt>
+              <dd className="title text-[44px] tabular-nums">{k.n}</dd>
+            </div>
+          ))}
           <div className="flex flex-col-reverse">
-            <dt className="mt-1 text-[15px] text-muted">cliques em WhatsApp (30 dias)</dt>
-            <dd className="title text-[44px] tabular-nums">{totalWhats}</dd>
-          </div>
-          <div className="flex flex-col-reverse">
-            <dt className="mt-1 text-[15px] text-muted">cliques em Como chegar (30 dias)</dt>
-            <dd className="title text-[44px] tabular-nums">{totalDir}</dd>
+            <dt className="mt-1 text-[15px] leading-snug text-muted">
+              lugares no ar
+              <span className="block text-[13px] text-ink-2">{c.users} contas, {c.owners} donos</span>
+            </dt>
+            <dd className="title text-[44px] tabular-nums">{c.approved}</dd>
           </div>
         </dl>
+      </section>
 
-        <nav className="no-scrollbar -mx-5 mt-7 flex gap-2 overflow-x-auto px-5">
-          {TABS.map((t) => (
-            <Link
-              key={t.key}
-              href={`/admin?s=${t.key}`}
-              replace
-              className={chip(t.key === tab)}
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="mt-5">
-          {tab === "importar" && <Import />}
-          {tab === "new" && <NewPlace />}
-          {tab === "claims" && <Claims />}
-          {(tab === "pending" || tab === "approved" || tab === "rejected") && (
-            <PlaceList status={tab} leads={new Map(leads.map((l) => [l.placeId, l]))} />
-          )}
-        </div>
-      </main>
-    </Page>
-  );
-}
-
-async function Import() {
-  const repo = getRepo();
-  const [queue, demo] = await Promise.all([repo.placesWithoutVision().then((l) => l.length), repo.countDemoPlaces()]);
-  return (
-    <>
-      {demo > 0 && (
-        <form action={removeDemoPlaces} className="mb-5 rounded-2xl bg-surface p-5">
-          <p className="text-[18px] font-semibold text-ipe">Há {demo} lugares fictícios no banco</p>
-          <p className="mt-1 text-[15px] leading-snug text-ink-2">
-            São os lugares de teste (Adega Lume, Varanda do Samba...), sem foto e com WhatsApp falso. Apague antes de
-            divulgar o app.
+      <section>
+        <h2 className="title text-[28px]">Buscas por dia</h2>
+        {searchTimes.length === 0 ? (
+          <p className="mt-2 text-[15px] text-muted">
+            Nenhuma busca registrada. Se o app já está no ar, confira se a migração 0006 rodou.
           </p>
-          <button className={`${BTN_LIGHT} mt-4 w-full`}>
-            Apagar lugares fictícios
-          </button>
-        </form>
-      )}
-      <ImportPanel
-        queries={QUERIES.map((q) => q.label)}
-        essentials={ESSENTIALS}
-        hasGoogleKey={!!process.env.GOOGLE_MAPS_API_KEY}
-        hasVision={!!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY)}
-        visionQueue={queue}
-      />
-    </>
-  );
-}
-
-function NewPlace() {
-  return (
-    <form action={createPlace} className="space-y-4 rounded-2xl bg-surface p-5">
-      <p className="text-[18px] font-semibold">Cadastrar lugar à mão</p>
-      <p className="text-[15px] leading-snug text-muted">
-        Entra direto como aprovado. Dê nota de vibe só para as ocasiões em que ele deve aparecer.
-      </p>
-      <PlaceFields />
-      <SubmitButton className={`${BTN_IPE} w-full`}>Cadastrar</SubmitButton>
-    </form>
-  );
-}
-
-async function Claims() {
-  const claims = await getRepo().listOpenClaims();
-  if (claims.length === 0) return <p className="text-muted">Nenhum pedido de dono em aberto.</p>;
-  return (
-    <ul className="space-y-3">
-      {claims.map((c) => (
-        <li key={c.id} className="rounded-2xl bg-surface p-5 text-[15px]">
-          <p className="text-[18px] font-semibold">{c.placeName}</p>
-          <p>
-            {c.userName ?? "Sem nome"}, <b className="font-semibold">{c.contact}</b>
-          </p>
-          {c.message && <p className="mt-1 text-muted">“{c.message}”</p>}
-          <p className="mt-1 text-[14px] text-muted">Confirme pelo contato antes de aprovar.</p>
-          <div className="mt-3 flex gap-2">
-            {[
-              { v: "1", label: "Aprovar" },
-              { v: "0", label: "Recusar" },
-            ].map((b) => (
-              <form key={b.v} action={resolveClaim}>
-                <input type="hidden" name="id" value={c.id} />
-                <input type="hidden" name="approve" value={b.v} />
-                <button className={chip(b.v === "1", true)}>{b.label}</button>
-              </form>
-            ))}
+        ) : (
+          <div className="mt-4">
+            <BarChart
+              days={perDay.map((d) => d.day)}
+              series={[{ label: "Buscas", color: "var(--ipe)", values: perDay.map((d) => d.count) }]}
+              label={`Buscas por dia nos últimos ${DAYS} dias`}
+            />
           </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
+        )}
+        {occasions.length > 0 && (
+          <ul className="mt-5 space-y-3">
+            {occasions.map((o) => (
+              <li key={o.key} className="text-[16px]">
+                <div className="flex justify-between">
+                  <span>{getOccasion(o.key)?.name ?? o.key}</span>
+                  <b className="tabular-nums">{o.count}</b>
+                </div>
+                <div className="mt-1.5 h-2 rounded-full bg-surface">
+                  <div
+                    className="h-full rounded-full bg-ipe"
+                    style={{ width: `${(o.count / occasions[0].count) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-async function PlaceList({
-  status,
-  leads,
-}: {
-  status: PlaceStatus;
-  leads: Map<string, { whatsapp: number; directions: number }>;
-}) {
-  const repo = getRepo();
-  const [places, signals] = await Promise.all([repo.listPlaces(status), repo.getSignals()]);
-  if (places.length === 0) return <p className="text-muted">Nada aqui.</p>;
-  const others = (["pending", "approved", "rejected"] as const).filter((s) => s !== status);
+      <section>
+        <h2 className="title text-[28px]">Precisa de você</h2>
+        {queue.length === 0 ? (
+          <p className="mt-2 text-[15px] text-muted">Nada pendente. Tudo revisado.</p>
+        ) : (
+          <ul className="mt-3">
+            {queue.map((q) => (
+              <li key={q.label}>
+                <Link href={q.href} className="flex h-14 items-center justify-between gap-3 border-b border-line text-[16px]">
+                  <span>
+                    <b className="tabular-nums">{q.n}</b> {q.label}
+                  </span>
+                  <span className="text-muted" aria-hidden>
+                    →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-  return (
-    <ul className="space-y-4">
-      {places.map((p) => {
-        const l = leads.get(p.id);
-        const s = signals.get(p.id);
-        return (
-          <li key={p.id} className="rounded-2xl bg-surface p-5 text-[15px]">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[18px] font-semibold">{p.name}</p>
-                <p className="text-muted">
-                  {[p.cuisines.map(cuisineLabel).join(", ") || p.category, p.neighborhood].filter(Boolean).join(", ")}
-                </p>
-              </div>
-              <p className="shrink-0 text-right text-[13px] text-muted">
-                {l ? `${l.whatsapp} WhatsApp, ${l.directions} rota` : "sem cliques"}
-                <br />
-                {s?.reviews ?? 0} avaliações
-              </p>
-            </div>
-            {p.aiSummary && <p className="mt-2 text-ink-2">{p.aiSummary}</p>}
-            <div className="mt-2 flex flex-wrap gap-1">
-              {OCCASIONS.map((o) => (
-                <span key={o.slug} className="rounded-full bg-soft px-2.5 py-1 text-[13px]">
-                  {o.slug}: <b>{p.vibe[o.slug]?.toFixed(1) ?? "–"}</b>
-                </span>
-              ))}
-            </div>
-
-            <details className="mt-3">
-              <summary className="flex h-11 cursor-pointer items-center text-muted">
-                {p.coverUrl ? "Trocar foto de capa" : "Pôr foto de capa"}
-              </summary>
-              <div className="mt-3">
-                <CoverEditor placeId={p.id} current={p.coverUrl} blurhash={p.coverBlurhash} />
-              </div>
-            </details>
-
-            <details>
-              <summary className="flex h-11 cursor-pointer items-center text-muted">Editar</summary>
-              <form action={saveDetails} className="mt-3 space-y-2">
-                <input type="hidden" name="id" value={p.id} />
-                <PlaceFields place={p} />
-                <SubmitButton className={`${BTN_IPE} w-full`}>Salvar</SubmitButton>
-              </form>
-            </details>
-
-            <div className="mt-3 flex gap-2">
-              {others.map((st) => (
-                <form key={st} action={setStatus}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <input type="hidden" name="status" value={st} />
-                  <button className={chip(st === "approved", true)}>
-                    {st === "approved" ? "Aprovar" : st === "rejected" ? "Rejeitar" : "Voltar p/ revisão"}
-                  </button>
-                </form>
-              ))}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+      <section>
+        <h2 className="title text-[28px]">Cota do Google hoje</h2>
+        <p className="mt-2 text-[15px] leading-snug text-muted">
+          Fotos e horários pedidos ao Google pelas telas públicas. Ao chegar no teto, o app para de chamar até as 20h de Campo
+          Grande (meia-noite UTC) e mostra o que já tem.
+        </p>
+        <p className="mt-4 text-[16px]">
+          <b className="tabular-nums">{google}</b> de {limit} chamadas
+        </p>
+        <div
+          className="mt-2 h-2 rounded-full bg-surface"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={limit}
+          aria-valuenow={google}
+          aria-label="Uso da cota do Google hoje"
+        >
+          <div
+            className={`h-full rounded-full ${share >= 0.8 ? "bg-danger" : "bg-ipe"}`}
+            style={{ width: `${share * 100}%` }}
+          />
+        </div>
+        {share >= 0.8 && (
+          <p className="mt-2 text-[14px] text-danger">Perto do teto. Suba GOOGLE_DAILY_LIMIT na Vercel se o gasto couber.</p>
+        )}
+      </section>
+    </div>
   );
 }

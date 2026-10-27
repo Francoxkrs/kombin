@@ -2,7 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { profileTag, requireAdmin, type CurrentUser } from "@/lib/auth";
 import { CATALOG_TAG } from "@/lib/catalog";
 import { CUISINES } from "@/lib/cuisines";
 import { OCCASIONS } from "@/lib/occasions";
@@ -20,21 +20,40 @@ function idFrom(formData: FormData): string {
   return id.data;
 }
 
+/** Toda mudança feita aqui entra no histórico (/admin/historico). */
+function log(admin: CurrentUser, action: string, target?: string, detail?: string) {
+  return getRepo().logAdmin({ actorId: admin.id, actorName: admin.name, action, target, detail });
+}
+
+/** As telas do admin são várias rotas; uma ação pode mudar números de todas. */
+const refresh = () => revalidatePath("/admin", "layout");
+
+const STATUS_VERB: Record<PlaceStatus, string> = {
+  approved: "Aprovou",
+  rejected: "Rejeitou",
+  pending: "Voltou para revisão",
+};
+
 /** Apaga os 12 lugares fictícios do seed, caso tenham ido parar no banco de produção. */
 export async function removeDemoPlaces() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   await getRepo().deleteDemoPlaces();
+  await log(admin, "Apagou os lugares fictícios");
   updateTag(CATALOG_TAG);
-  revalidatePath("/admin");
+  refresh();
 }
 
 export async function setStatus(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const status = String(formData.get("status")) as PlaceStatus;
   if (!["pending", "approved", "rejected"].includes(status)) return;
-  await getRepo().updatePlace(idFrom(formData), { status });
+  const repo = getRepo();
+  const id = idFrom(formData);
+  await repo.updatePlace(id, { status });
+  const place = await repo.getPlace(id);
+  await log(admin, STATUS_VERB[status], place?.name ?? id, text(formData.get("reason"), 200) ?? undefined);
   updateTag(CATALOG_TAG);
-  revalidatePath("/admin");
+  refresh();
 }
 
 const text = (v: FormDataEntryValue | null, max = 200) => String(v ?? "").trim().slice(0, max) || null;
@@ -79,7 +98,7 @@ function readPlaceForm(formData: FormData): PlacePatch {
 }
 
 export async function saveDetails(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const repo = getRepo();
   const id = idFrom(formData);
   const patch = readPlaceForm(formData);
@@ -87,25 +106,55 @@ export async function saveDetails(formData: FormData) {
   const before = await repo.getPlace(id);
   if (before && patch.coverUrl !== before.coverUrl) patch.coverBlurhash = null;
   await repo.updatePlace(id, patch);
+  await log(admin, "Editou", patch.name ?? before?.name ?? id);
   updateTag(CATALOG_TAG);
-  revalidatePath("/admin");
+  refresh();
 }
 
 /** Cadastro manual: para lugares que o pipeline não pegou (ou antes de ter chave do Google). */
 export async function createPlace(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const patch = readPlaceForm(formData);
   if (!patch.name) return;
   await getRepo().createPlace({ ...patch, name: patch.name, status: "approved" });
+  await log(admin, "Cadastrou à mão", patch.name);
   updateTag(CATALOG_TAG);
-  revalidatePath("/admin");
-  redirect("/admin?s=approved");
+  refresh();
+  redirect(`/admin/lugares?s=approved&q=${encodeURIComponent(patch.name)}`);
 }
 
 export async function resolveClaim(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const id = Number(formData.get("id"));
   if (!Number.isSafeInteger(id) || id <= 0) return;
-  await getRepo().resolveClaim(id, formData.get("approve") === "1");
-  revalidatePath("/admin");
+  const approve = formData.get("approve") === "1";
+  await getRepo().resolveClaim(id, approve);
+  await log(admin, approve ? "Aprovou dono" : "Recusou dono", text(formData.get("label")) ?? `pedido ${id}`);
+  refresh();
+  revalidatePath("/painel");
+}
+
+/** Tira o acesso de um dono ao painel da casa (o pedido dele continua no histórico). */
+export async function revokeOwner(formData: FormData) {
+  const admin = await requireAdmin();
+  const placeId = idFrom(formData);
+  const userId = adminId.safeParse(formData.get("userId"));
+  if (!userId.success) return;
+  await getRepo().revokeOwner(placeId, userId.data);
+  await log(admin, "Tirou o acesso de dono", text(formData.get("label")) ?? placeId);
+  refresh();
+  revalidatePath("/painel");
+}
+
+/** Dá ou tira o papel de admin. Ninguém tira o próprio, para o painel não ficar sem dono. */
+export async function setRole(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = adminId.safeParse(formData.get("userId"));
+  const role = formData.get("role");
+  if (!userId.success || (role !== "admin" && role !== "user")) return;
+  if (userId.data === admin.id) return;
+  await getRepo().setRole(userId.data, role);
+  await log(admin, role === "admin" ? "Tornou admin" : "Tirou o admin", text(formData.get("label")) ?? userId.data);
+  updateTag(profileTag(userId.data));
+  refresh();
 }
