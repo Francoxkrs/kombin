@@ -73,7 +73,7 @@ export default async function OccasionPage({ params, searchParams }: PageProps<"
 
   return (
     <Page>
-      <TopBar back={{ href: isAny ? "/" : `/?o=${occasion.slug}`, label: "Descobrir" }} />
+      <TopBar back={{ href: isAny ? "/descobrir" : `/descobrir?o=${occasion.slug}`, label: "Descobrir" }} />
       <main className={`flex-1 ${decide ? "pb-28" : "pb-12"}`}>
         <header className="px-5 pt-4">
           <h1 className="title text-[48px] text-balance">{title}</h1>

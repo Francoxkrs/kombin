@@ -1,49 +1,36 @@
-import { Discover, type Slate } from "@/components/Discover";
+import { redirect } from "next/navigation";
+import { Home } from "@/components/home/Home";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
 import { Page } from "@/components/ui/Page";
 import { AccountButton } from "@/components/ui/TopBar";
 import { getCurrentUser } from "@/lib/auth";
 import { getCatalog } from "@/lib/catalog";
-import { contextNotes, getMatchContext } from "@/lib/context";
-import { rankPlaces } from "@/lib/match";
-import { getOccasion, OCCASIONS } from "@/lib/occasions";
-import { getSaved } from "@/lib/saved";
-import { toScreen } from "@/lib/screen";
+import { getMatchContext } from "@/lib/context";
+import { buildHome } from "@/lib/home";
 import { greeting } from "@/lib/time";
 
-/** Quantas telas cada ocasião mostra antes da tela final ("Ainda na dúvida?"). */
-const SCREENS = 8;
+export const metadata = {
+  title: "Kombin · lugares que combinam com você",
+  description:
+    "Diga o momento e veja quanto cada casa de Campo Grande combina com ele: barulho, couvert e gasto de quem foi.",
+};
 
-export default async function DiscoverPage({ searchParams }: PageProps<"/">) {
-  const [{ places, byId, signals }, user, sp] = await Promise.all([getCatalog(), getCurrentUser(), searchParams]);
-  const [savedIndex, ctx] = await Promise.all([
-    user ? getSaved(user.id) : { want: [] },
-    getMatchContext(user?.id ?? null, byId),
-  ]);
-  const saved = savedIndex.want;
-  const { suggested } = greeting();
-  const asked = typeof sp.o === "string" && sp.o !== "tudo" && getOccasion(sp.o) ? sp.o : null;
+/**
+ * Página inicial: conta o que o Kombin faz rolando a tela (ocasião → casas lidas → match),
+ * leva para o quiz de 3 passos e mostra o melhor de hoje. O feed de telas cheias foi para /descobrir.
+ */
+export default async function HomePage({ searchParams }: PageProps<"/">) {
+  const sp = await searchParams;
+  // Links antigos do Descobrir (/?o=pagode) continuam abrindo a ocasião certa.
+  if (typeof sp.o === "string") redirect(`/descobrir?o=${encodeURIComponent(sp.o)}`);
 
-  // A ocasião da hora vem primeiro nas abas.
-  const slates: Slate[] = [...OCCASIONS]
-    .sort((a, b) => (a.slug === suggested ? -1 : b.slug === suggested ? 1 : 0))
-    .map((o) => {
-      const ranked = rankPlaces(places, signals, o, ctx);
-      return { slug: o.slug, count: ranked.length, screens: ranked.slice(0, SCREENS).map(toScreen) };
-    });
+  const [catalog, user] = await Promise.all([getCatalog(), getCurrentUser()]);
+  const ctx = await getMatchContext(user?.id ?? null, catalog.byId);
+  const data = buildHome(catalog, ctx, greeting().suggested);
 
   return (
     <Page>
-      <Discover
-        slates={slates}
-        initial={asked ?? suggested}
-        suggested={suggested}
-        saved={saved}
-        loggedIn={!!user}
-        isAdmin={!!user?.isAdmin}
-        account={<AccountButton />}
-        notes={contextNotes(ctx)}
-      />
+      <Home data={data} loggedIn={!!user} account={<AccountButton />} />
       <ReviewPrompt />
     </Page>
   );

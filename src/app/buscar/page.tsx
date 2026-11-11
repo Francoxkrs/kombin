@@ -14,7 +14,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/buscar">)
   const neighborhoods = [...count(places.map((p) => p.neighborhood).filter((n): n is string => !!n))]
     .sort((a, b) => b[1] - a[1])
     .map(([n]) => n);
-  const back = one("o") ? `/o/${one("o")}` : "/";
+  const back = one("o") ? `/o/${one("o")}` : "/descobrir";
 
   return (
     <Page>
