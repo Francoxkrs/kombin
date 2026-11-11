@@ -27,7 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${bricolage.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-clip bg-background">
+        <div className="relative mx-auto min-h-dvh w-full max-w-md overflow-x-clip bg-background has-[[data-wide]]:max-w-none">
           {children}
           <TabBar />
         </div>

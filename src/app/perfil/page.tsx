@@ -144,7 +144,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/perfil">
             <p className="max-w-[32ch] text-[17px] leading-snug text-muted">
               {list === "want" ? "Toque no coração de um lugar para guardar aqui." : "Quando você avalia um lugar, ele entra aqui."}
             </p>
-            <Link href="/" className={`${BTN_LIGHT} mt-5 w-full`}>
+            <Link href="/descobrir" className={`${BTN_LIGHT} mt-5 w-full`}>
               Descobrir lugares
             </Link>
           </div>

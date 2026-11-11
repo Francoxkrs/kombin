@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/", label: "Descobrir", match: (p: string) => p === "/" },
+  { href: "/descobrir", label: "Descobrir", match: (p: string) => p.startsWith("/descobrir") },
   { href: "/buscar", label: "Buscar", match: (p: string) => p.startsWith("/buscar") },
   { href: "/perfil", label: "Você", match: (p: string) => p.startsWith("/perfil") },
 ];
@@ -15,7 +15,8 @@ const HIDDEN = ["/buscar", "/o/", "/l/", "/v/", "/admin", "/painel", "/restauran
 /** Navegação principal: texto, sem ícone, colada no rodapé. */
 export function TabBar() {
   const pathname = usePathname();
-  if (HIDDEN.some((h) => pathname.startsWith(h))) return null;
+  // A página inicial tem a própria barra de ação no rodapé (StickyCta).
+  if (pathname === "/" || HIDDEN.some((h) => pathname.startsWith(h))) return null;
   const activeIndex = TABS.findIndex((t) => t.match(pathname));
 
   return (

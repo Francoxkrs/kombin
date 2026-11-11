@@ -54,7 +54,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/l/
   const match = occasion ? computeMatch(place, signals, occasion, await getMatchContext(user?.id ?? null, catalog.byId)) : null;
   const saved = user ? await getSaved(user.id) : { want: [], been: [] };
   const here = `/l/${place.id}${occasion ? `?o=${occasion.slug}` : ""}`;
-  const back = occasion ? `/o/${occasion.slug}` : "/";
+  const back = occasion ? `/o/${occasion.slug}` : "/descobrir";
 
   const photos = placePhotos(place);
   const bestFor = OCCASIONS.filter((o) => (place.vibe[o.slug] ?? 0) >= 7 && o.slug !== occasion?.slug)

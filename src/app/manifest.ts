@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Kombin",
     short_name: "Kombin",
     description: "Lugares que combinam com você.",
-    start_url: "/",
+    start_url: "/descobrir",
     display: "standalone",
     background_color: "#2a1b12",
     theme_color: "#2a1b12",

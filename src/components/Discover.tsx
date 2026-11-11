@@ -80,7 +80,7 @@ function Screen({
           <Link href={href} transitionTypes={["nav-forward"]} className={btn("ipe", "md")}>
             Ver o lugar
           </Link>
-          <SaveButton placeId={place.id} saved={saved} loggedIn={loggedIn} back={`/?o=${occasion.slug}`} />
+          <SaveButton placeId={place.id} saved={saved} loggedIn={loggedIn} back={`/descobrir?o=${occasion.slug}`} />
         </div>
         {first && <p className="mt-5 text-[14px] text-foreground/75">Passe pra cima para ver o próximo</p>}
       </div>
@@ -174,7 +174,7 @@ export function Discover({
     setCurrent(slug);
     pager.current?.scrollTo({ top: 0, behavior: "instant" });
     savePosition(slug, 0);
-    window.history.replaceState(window.history.state, "", slug === suggested ? "/" : `/?o=${slug}`);
+    window.history.replaceState(window.history.state, "", slug === suggested ? "/descobrir" : `/descobrir?o=${slug}`);
   }
 
   function onScroll() {
